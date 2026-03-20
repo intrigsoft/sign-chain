@@ -12,6 +12,19 @@ pub struct PlacementRecord {
     pub height: f32,
 }
 
+/// A text field placed by a signer on a PDF page.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextFieldRecord {
+    pub page: u32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub text: String,
+    pub font_size: f32,
+    pub field_type: String,
+}
+
 /// Metadata for one signer in the chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +43,8 @@ pub struct SignerRecord {
     pub qr_url: String,
     pub eof_byte_offset: u64,
     pub placements: Vec<PlacementRecord>,
+    #[serde(default)]
+    pub text_fields: Vec<TextFieldRecord>,
 }
 
 /// Top-level chain metadata embedded in the PDF.

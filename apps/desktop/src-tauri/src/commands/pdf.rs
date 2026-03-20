@@ -6,7 +6,7 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::pdf::{
-    chain::{self, PlacementRecord, SignChainMeta, SignerRecord},
+    chain::{self, PlacementRecord, SignChainMeta, SignerRecord, TextFieldRecord},
     embed, hash, normalise,
 };
 
@@ -18,6 +18,19 @@ pub struct SignaturePlacement {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextFieldPlacement {
+    pub page_number: u32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub text: String,
+    pub font_size: f32,
+    pub field_type: String,
 }
 
 #[tauri::command]
@@ -47,6 +60,7 @@ pub async fn sign_document(
     signer_name: String,
     signer_email: String,
     placements: Vec<SignaturePlacement>,
+    text_fields: Vec<TextFieldPlacement>,
 ) -> Result<String, String> {
     let _ = app.emit("signing:status", "preparing");
 
@@ -78,6 +92,21 @@ pub async fn sign_document(
         })
         .collect();
 
+    let text_field_records: Vec<TextFieldRecord> = text_fields
+        .iter()
+        .filter(|tf| !tf.text.is_empty())
+        .map(|tf| TextFieldRecord {
+            page: tf.page_number,
+            x: tf.x,
+            y: tf.y,
+            width: tf.width,
+            height: tf.height,
+            text: tf.text.clone(),
+            font_size: tf.font_size,
+            field_type: tf.field_type.clone(),
+        })
+        .collect();
+
     let final_pdf = if is_first_signer {
         sign_first(
             &app,
@@ -88,6 +117,8 @@ pub async fn sign_document(
             &signer_email,
             &placements,
             &placement_records,
+            &text_fields,
+            &text_field_records,
         )?
     } else {
         sign_subsequent(
@@ -99,6 +130,8 @@ pub async fn sign_document(
             &signer_email,
             &placements,
             &placement_records,
+            &text_fields,
+            &text_field_records,
             existing_chain.unwrap(),
         )?
     };
@@ -125,6 +158,7 @@ pub async fn sign_document(
 fn clone_mutable_objects(
     inc_doc: &mut lopdf::IncrementalDocument,
     placements: &[SignaturePlacement],
+    text_fields: &[TextFieldPlacement],
 ) -> Result<BTreeMap<u32, lopdf::ObjectId>, String> {
     // Collect all object IDs we need to clone BEFORE taking mutable borrows.
     let (catalog_id, info_id, page_ids) = {
@@ -143,6 +177,13 @@ fn clone_mutable_objects(
         (catalog_id, info_id, page_ids)
     };
 
+    // Collect unique page numbers from both signature placements and text fields
+    let mut pages_to_clone: std::collections::HashSet<u32> =
+        placements.iter().map(|p| p.page_number).collect();
+    for tf in text_fields {
+        pages_to_clone.insert(tf.page_number);
+    }
+
     // Now clone — no immutable borrow of inc_doc is alive
     if let Some(id) = catalog_id {
         inc_doc
@@ -154,8 +195,8 @@ fn clone_mutable_objects(
             .opt_clone_object_to_new_document(id)
             .map_err(|e| format!("Failed to clone Info dict: {e}"))?;
     }
-    for placement in placements {
-        if let Some(&page_id) = page_ids.get(&placement.page_number) {
+    for page_num in pages_to_clone {
+        if let Some(&page_id) = page_ids.get(&page_num) {
             inc_doc
                 .opt_clone_object_to_new_document(page_id)
                 .map_err(|e| format!("Failed to clone page: {e}"))?;
@@ -176,6 +217,8 @@ fn sign_first(
     signer_email: &str,
     placements: &[SignaturePlacement],
     placement_records: &[PlacementRecord],
+    text_fields: &[TextFieldPlacement],
+    text_field_records: &[TextFieldRecord],
 ) -> Result<Vec<u8>, String> {
     // Create IncrementalDocument from original bytes — preserves original PDF as base layer
     let prev_doc = lopdf::Document::load_mem(pdf_bytes)
@@ -184,7 +227,7 @@ fn sign_first(
         lopdf::IncrementalDocument::create_from(pdf_bytes.to_vec(), prev_doc);
 
     // Clone catalog, Info dict, and target pages into new_document
-    let page_ids = clone_mutable_objects(&mut inc_doc, placements)?;
+    let page_ids = clone_mutable_objects(&mut inc_doc, placements, text_fields)?;
 
     // Step 1: Normalise (operates on new_document — original bytes untouched)
     normalise::normalise_pdf(&mut inc_doc.new_document)
@@ -196,11 +239,13 @@ fn sign_first(
         &mut inc_doc.new_document,
         &page_ids,
         signature_png_base64,
-        signer_name,
-        signer_email,
         placements,
     )
     .map_err(|e| format!("Embedding failed: {e}"))?;
+
+    // Step 2b: Embed text fields
+    embed::embed_text_fields(&mut inc_doc.new_document, &page_ids, text_fields)
+        .map_err(|e| format!("Text field embedding failed: {e}"))?;
 
     // Step 3: Compute hash on the serialized bytes (before QR)
     let _ = app.emit("signing:status", "hashing");
@@ -236,6 +281,7 @@ fn sign_first(
         qr_url: qr_payload,
         eof_byte_offset: 0, // placeholder — set after save
         placements: placement_records.to_vec(),
+        text_fields: text_field_records.to_vec(),
     };
 
     let meta = SignChainMeta {
@@ -268,6 +314,8 @@ fn sign_subsequent(
     signer_email: &str,
     placements: &[SignaturePlacement],
     placement_records: &[PlacementRecord],
+    text_fields: &[TextFieldPlacement],
+    text_field_records: &[TextFieldRecord],
     mut existing_meta: SignChainMeta,
 ) -> Result<Vec<u8>, String> {
     // --- Verify existing chain before signing ---
@@ -301,7 +349,7 @@ fn sign_subsequent(
     );
 
     // Clone target pages and catalog into new_document
-    let page_ids = clone_mutable_objects(&mut inc_doc, placements)?;
+    let page_ids = clone_mutable_objects(&mut inc_doc, placements, text_fields)?;
 
     // Step 1: Embed signature block (skip normalisation — already done by first signer)
     let _ = app.emit("signing:status", "embedding");
@@ -309,11 +357,13 @@ fn sign_subsequent(
         &mut inc_doc.new_document,
         &page_ids,
         signature_png_base64,
-        signer_name,
-        signer_email,
         placements,
     )
     .map_err(|e| format!("Embedding failed: {e}"))?;
+
+    // Step 1b: Embed text fields
+    embed::embed_text_fields(&mut inc_doc.new_document, &page_ids, text_fields)
+        .map_err(|e| format!("Text field embedding failed: {e}"))?;
 
     // Step 2: Compute hash on the serialized bytes (before QR)
     let _ = app.emit("signing:status", "hashing");
@@ -354,6 +404,7 @@ fn sign_subsequent(
         qr_url: qr_payload,
         eof_byte_offset: 0, // placeholder
         placements: placement_records.to_vec(),
+        text_fields: text_field_records.to_vec(),
     };
     existing_meta.signatures.push(signer_record);
 
@@ -449,6 +500,63 @@ pub async fn verify_document(path: String) -> Result<VerificationResult, String>
         chain_valid,
         signers,
     })
+}
+
+#[tauri::command]
+pub async fn extract_revision(path: String, signer_index: Option<usize>) -> Result<String, String> {
+    let pdf_bytes =
+        std::fs::read(&path).map_err(|e| format!("Failed to read PDF: {e}"))?;
+
+    // Scan for all %%EOF markers in the raw bytes
+    let eof_marker = b"%%EOF";
+    let mut eof_positions: Vec<usize> = Vec::new();
+    for i in 0..pdf_bytes.len().saturating_sub(eof_marker.len() - 1) {
+        if pdf_bytes[i..].starts_with(eof_marker) {
+            let mut end = i + eof_marker.len();
+            if end < pdf_bytes.len() && pdf_bytes[end] == b'\r' {
+                end += 1;
+            }
+            if end < pdf_bytes.len() && pdf_bytes[end] == b'\n' {
+                end += 1;
+            }
+            eof_positions.push(end);
+        }
+    }
+
+    if eof_positions.is_empty() {
+        return Err("No %%EOF markers found in PDF".into());
+    }
+
+    // Each signer produces 2 incremental saves (sig+hash, then QR+chain).
+    // None = original document → %%EOF[0]
+    // Some(N) = signer N complete → %%EOF[2*N + 2]
+    let (eof_index, label) = match signer_index {
+        None => (0, "original".to_string()),
+        Some(n) => (2 * n + 2, format!("signer-{n}")),
+    };
+
+    if eof_index >= eof_positions.len() {
+        return Err(format!(
+            "Revision index out of range: need %%EOF[{}] but only found {} markers",
+            eof_index,
+            eof_positions.len()
+        ));
+    }
+
+    let truncated = &pdf_bytes[..eof_positions[eof_index]];
+
+    let temp_dir = std::env::temp_dir().join("signchain");
+    std::fs::create_dir_all(&temp_dir)
+        .map_err(|e| format!("Failed to create temp dir: {e}"))?;
+
+    let src = std::path::Path::new(&path);
+    let stem = src.file_stem().unwrap_or_default().to_string_lossy();
+    let temp_path = temp_dir.join(format!("{stem}.revision-{label}.pdf"));
+
+    std::fs::write(&temp_path, truncated)
+        .map_err(|e| format!("Failed to write revision PDF: {e}"))?;
+
+    Ok(temp_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]

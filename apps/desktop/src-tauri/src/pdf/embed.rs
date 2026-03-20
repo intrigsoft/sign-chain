@@ -11,7 +11,7 @@ use qrcode::QrCode;
 use std::collections::BTreeMap;
 use std::io::Write;
 
-use crate::commands::pdf::SignaturePlacement;
+use crate::commands::pdf::{SignaturePlacement, TextFieldPlacement};
 
 /// Decode PNG base64 → raw RGB + alpha, compress with flate2, and add as PDF XObjects.
 /// Returns (rgb_object_id) with SMask referencing the alpha channel.
@@ -85,14 +85,10 @@ pub fn embed_signature_block(
     doc: &mut Document,
     page_ids: &BTreeMap<u32, ObjectId>,
     signature_png_base64: &str,
-    signer_name: &str,
-    signer_email: &str,
     placements: &[SignaturePlacement],
 ) -> Result<()> {
     // Decode PNG once — reuse image data across all placements
     let sig_obj_id = add_png_image(doc, signature_png_base64)?;
-    let signer_text = format!("Signed by: {} ({})", signer_name, signer_email);
-
     for (idx, placement) in placements.iter().enumerate() {
         let target_page_id = page_ids
             .get(&placement.page_number)
@@ -126,28 +122,6 @@ pub fn embed_signature_block(
         ));
         ops.push(Operation::new("Do", vec![xobj_name.as_str().into()]));
         ops.push(Operation::new("Q", vec![]));
-
-        // Add signer text below the signature
-        ops.push(Operation::new("BT", vec![]));
-        ops.push(Operation::new(
-            "Tf",
-            vec!["Helv".into(), Object::Real(6.0)],
-        ));
-        ops.push(Operation::new(
-            "Td",
-            vec![
-                Object::Real(sig_x),
-                Object::Real(sig_y - 10.0),
-            ],
-        ));
-        ops.push(Operation::new(
-            "Tj",
-            vec![Object::String(
-                signer_text.clone().into_bytes(),
-                lopdf::StringFormat::Literal,
-            )],
-        ));
-        ops.push(Operation::new("ET", vec![]));
 
         ops.push(Operation::new("Q", vec![]));
 
@@ -204,6 +178,154 @@ pub fn embed_signature_block(
                         },
                     },
                 );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Check if a page dictionary already has a Helvetica font resource named "Helv".
+fn page_has_helvetica_font(page: &lopdf::Dictionary) -> bool {
+    page.get(b"Resources")
+        .ok()
+        .and_then(|r| match r {
+            Object::Dictionary(d) => Some(d),
+            _ => None,
+        })
+        .and_then(|res| res.get(b"Font").ok())
+        .and_then(|f| match f {
+            Object::Dictionary(d) => Some(d),
+            _ => None,
+        })
+        .and_then(|fonts| fonts.get(b"Helv").ok())
+        .is_some()
+}
+
+/// Add a Helvetica Type1 font reference to a page dictionary under the name "Helv".
+fn add_helvetica_font_to_page(page: &mut lopdf::Dictionary, font_id: lopdf::ObjectId) {
+    if page.get(b"Resources").is_err() {
+        page.set("Resources", dictionary! {});
+    }
+    if let Ok(Object::Dictionary(ref mut resources)) = page.get_mut(b"Resources") {
+        if resources.get(b"Font").is_err() {
+            resources.set("Font", dictionary! {});
+        }
+        if let Ok(Object::Dictionary(ref mut fonts)) = resources.get_mut(b"Font") {
+            fonts.set("Helv", Object::Reference(font_id));
+        }
+    }
+}
+
+/// Embed user-entered text fields at the specified placements.
+/// Each text field is rendered as a content stream with BT/ET text operators.
+pub fn embed_text_fields(
+    doc: &mut Document,
+    page_ids: &BTreeMap<u32, ObjectId>,
+    text_fields: &[TextFieldPlacement],
+) -> Result<()> {
+    for field in text_fields.iter() {
+        if field.text.is_empty() {
+            continue;
+        }
+
+        let target_page_id = page_ids
+            .get(&field.page_number)
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("Page {} not found", field.page_number))?;
+
+        // Baseline offset: place text baseline slightly above the bottom of the bounding box
+        let baseline_y = field.y + (field.font_size * 0.25);
+
+        let mut ops = Vec::new();
+        ops.push(Operation::new("q", vec![]));
+
+        // Set text color to black
+        ops.push(Operation::new(
+            "rg",
+            vec![
+                Object::Real(0.0),
+                Object::Real(0.0),
+                Object::Real(0.0),
+            ],
+        ));
+
+        ops.push(Operation::new("BT", vec![]));
+        ops.push(Operation::new(
+            "Tf",
+            vec!["Helv".into(), Object::Real(field.font_size)],
+        ));
+        ops.push(Operation::new(
+            "Td",
+            vec![
+                Object::Real(field.x),
+                Object::Real(baseline_y),
+            ],
+        ));
+
+        // Escape parentheses and backslashes for PDF literal string
+        let escaped_text = field
+            .text
+            .replace('\\', "\\\\")
+            .replace('(', "\\(")
+            .replace(')', "\\)");
+
+        ops.push(Operation::new(
+            "Tj",
+            vec![Object::String(
+                escaped_text.into_bytes(),
+                lopdf::StringFormat::Literal,
+            )],
+        ));
+
+        ops.push(Operation::new("ET", vec![]));
+        ops.push(Operation::new("Q", vec![]));
+
+        let content = Content { operations: ops };
+        let content_bytes = content.encode()?;
+        let content_id = doc.add_object(Stream::new(dictionary! {}, content_bytes));
+
+        // Check if page needs Helvetica font, and if so, create the font object first
+        let needs_font = {
+            if let Ok(Object::Dictionary(ref page)) = doc.get_object(target_page_id) {
+                !page_has_helvetica_font(page)
+            } else {
+                false
+            }
+        };
+
+        let font_id = if needs_font {
+            let font_dict = dictionary! {
+                "Type" => "Font",
+                "Subtype" => "Type1",
+                "BaseFont" => "Helvetica",
+            };
+            Some(doc.add_object(font_dict))
+        } else {
+            None
+        };
+
+        // Append content stream to page and add font resource
+        if let Ok(Object::Dictionary(ref mut page)) = doc.get_object_mut(target_page_id) {
+            let existing_contents = page.get(b"Contents").cloned();
+            match existing_contents {
+                Ok(Object::Array(mut arr)) => {
+                    arr.push(Object::Reference(content_id));
+                    page.set("Contents", Object::Array(arr));
+                }
+                Ok(existing) => {
+                    page.set(
+                        "Contents",
+                        Object::Array(vec![existing, Object::Reference(content_id)]),
+                    );
+                }
+                Err(_) => {
+                    page.set("Contents", Object::Reference(content_id));
+                }
+            }
+
+            if let Some(fid) = font_id {
+                add_helvetica_font_to_page(page, fid);
             }
         }
     }

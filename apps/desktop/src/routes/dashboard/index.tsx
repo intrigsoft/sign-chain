@@ -1,7 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as pdfjs from 'pdfjs-dist';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useDocuments } from '../../hooks/useDocuments';
 import {
+  extractRevision,
   openPdfPicker,
   getPdfPageCount,
   verifyDocument,
@@ -10,6 +13,176 @@ import {
 import { useSigningStore } from '../../store/signing';
 import FileDropZone from '../../components/FileDropZone';
 import { useTauriFileDrop, type DropZone } from '../../hooks/useTauriFileDrop';
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
+
+/** Renders a single page of a revision PDF to a canvas, fit-to-width. */
+function RevisionPage({
+  pdfDoc,
+  pageNumber,
+  containerWidth,
+}: {
+  pdfDoc: PDFDocumentProxy;
+  pageNumber: number;
+  containerWidth: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let renderTask: ReturnType<
+      Awaited<ReturnType<PDFDocumentProxy['getPage']>>['render']
+    > | null = null;
+
+    pdfDoc.getPage(pageNumber).then((page) => {
+      if (cancelled || !canvasRef.current) return;
+
+      const unscaled = page.getViewport({ scale: 1 });
+      const scale = containerWidth / unscaled.width;
+      const viewport = page.getViewport({ scale });
+
+      setDims({ w: viewport.width, h: viewport.height });
+
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      renderTask = page.render({ canvas, canvasContext: ctx, viewport });
+      renderTask.promise.catch(() => {
+        /* cancelled */
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      renderTask?.cancel();
+    };
+  }, [pdfDoc, pageNumber, containerWidth]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        display: 'block',
+        width: dims?.w ?? containerWidth,
+        height: dims?.h ?? 200,
+        background: '#fff',
+        borderRadius: 4,
+      }}
+    />
+  );
+}
+
+/** Inline PDF revision preview rendered via pdfjs canvases. */
+function RevisionPreview({
+  filePath,
+  onClose,
+}: {
+  filePath: string;
+  onClose: () => void;
+}) {
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const url = `asset://localhost/${encodeURIComponent(filePath)}`;
+    const loadingTask = pdfjs.getDocument(url);
+    loadingTask.promise
+      .then((doc) => {
+        if (!cancelled) setPdfDoc(doc);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(String(err));
+      });
+    return () => {
+      cancelled = true;
+      loadingTask.destroy();
+    };
+  }, [filePath]);
+
+  if (error) {
+    return (
+      <div style={{ marginTop: 12, color: '#ef4444', fontSize: 13 }}>
+        Failed to load revision: {error}
+      </div>
+    );
+  }
+
+  if (!pdfDoc) {
+    return (
+      <div style={{ marginTop: 12, color: '#666', fontSize: 13 }}>
+        Loading preview...
+      </div>
+    );
+  }
+
+  const containerWidth = 840; // fits within 900px max-width minus padding
+
+  return (
+    <div
+      style={{
+        marginTop: 16,
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        background: '#f9fafb',
+        padding: 12,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+          Revision Preview ({pdfDoc.numPages} page
+          {pdfDoc.numPages !== 1 ? 's' : ''})
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            padding: '4px 12px',
+            fontSize: 12,
+            background: '#e5e7eb',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Close preview
+        </button>
+      </div>
+      <div
+        style={{
+          maxHeight: 500,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        {Array.from({ length: pdfDoc.numPages }, (_, i) => (
+          <RevisionPage
+            key={i}
+            pdfDoc={pdfDoc}
+            pageNumber={i + 1}
+            containerWidth={containerWidth - 24}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -23,6 +196,9 @@ export default function DashboardPage() {
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerificationResult | null>(null);
   const [verifyFileName, setVerifyFileName] = useState<string | null>(null);
+  const [verifyFilePath, setVerifyFilePath] = useState<string | null>(null);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // --- Sign flow ---
   const handleSignFiles = useCallback(
@@ -47,6 +223,8 @@ export default function DashboardPage() {
   const runVerification = useCallback(async (path: string) => {
     setVerifyError(null);
     setVerifyResult(null);
+    setPreviewPath(null);
+    setVerifyFilePath(path);
     setVerifyFileName(path.split(/[\\/]/).pop() ?? path);
     setVerifying(true);
     try {
@@ -58,6 +236,27 @@ export default function DashboardPage() {
       setVerifying(false);
     }
   }, []);
+
+  const handleViewRevision = useCallback(
+    async (signerIndex: number | null) => {
+      if (!verifyFilePath) return;
+      setPreviewLoading(true);
+      try {
+        const tempPath = await extractRevision(verifyFilePath, signerIndex);
+        setPreviewPath(tempPath);
+      } catch (err) {
+        setVerifyError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [verifyFilePath],
+  );
+
+  const handleViewOriginal = useCallback(
+    () => handleViewRevision(null),
+    [handleViewRevision],
+  );
 
   const handleVerifyFiles = useCallback(
     (paths: string[]) => {
@@ -177,6 +376,8 @@ export default function DashboardPage() {
               onClick={() => {
                 setVerifyResult(null);
                 setVerifyFileName(null);
+                setVerifyFilePath(null);
+                setPreviewPath(null);
               }}
               style={{
                 background: 'none',
@@ -214,6 +415,23 @@ export default function DashboardPage() {
                     : 'Chain integrity broken'}
                 </div>
 
+                <button
+                  onClick={handleViewOriginal}
+                  disabled={previewLoading}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: 12,
+                    background: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    cursor: previewLoading ? 'default' : 'pointer',
+                    marginBottom: 12,
+                    opacity: previewLoading ? 0.6 : 1,
+                  }}
+                >
+                  View original
+                </button>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {verifyResult.signers.map((s, i) => (
                     <div
@@ -249,19 +467,37 @@ export default function DashboardPage() {
                             </span>
                           </span>
                         </div>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: s.status === 'valid' ? '#16a34a' : '#ef4444',
-                          }}
-                        >
-                          {s.status === 'valid'
-                            ? 'Valid'
-                            : s.status === 'tampered'
-                              ? 'Tampered'
-                              : 'Unverifiable'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <button
+                            onClick={() => handleViewRevision(i)}
+                            disabled={previewLoading}
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: 11,
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: 4,
+                              color: '#2563eb',
+                              cursor: previewLoading ? 'default' : 'pointer',
+                              opacity: previewLoading ? 0.6 : 1,
+                            }}
+                          >
+                            View
+                          </button>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: s.status === 'valid' ? '#16a34a' : '#ef4444',
+                            }}
+                          >
+                            {s.status === 'valid'
+                              ? 'Valid'
+                              : s.status === 'tampered'
+                                ? 'Tampered'
+                                : 'Unverifiable'}
+                          </span>
+                        </div>
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>
                         <div>Signed {new Date(s.timestamp).toLocaleString()}</div>
@@ -272,6 +508,14 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Inline revision preview */}
+                {previewPath && (
+                  <RevisionPreview
+                    filePath={previewPath}
+                    onClose={() => setPreviewPath(null)}
+                  />
+                )}
               </>
             )}
           </div>

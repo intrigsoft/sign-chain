@@ -8,6 +8,17 @@ export interface SignaturePlacement {
   height: number;
 }
 
+export interface TauriTextFieldPlacement {
+  pageNumber: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  fontSize: number;
+  fieldType: string;
+}
+
 export async function openPdfPicker(): Promise<string | null> {
   return invoke<string | null>('open_pdf_picker');
 }
@@ -21,7 +32,8 @@ export async function signDocument(
   signaturePngBase64: string,
   signerName: string,
   signerEmail: string,
-  placements: SignaturePlacement[]
+  placements: SignaturePlacement[],
+  textFields: TauriTextFieldPlacement[]
 ): Promise<string> {
   return invoke<string>('sign_document', {
     path,
@@ -29,6 +41,7 @@ export async function signDocument(
     signerName,
     signerEmail,
     placements,
+    textFields,
   });
 }
 
@@ -60,4 +73,11 @@ export interface VerificationResult {
 
 export async function verifyDocument(path: string): Promise<VerificationResult> {
   return invoke<VerificationResult>('verify_document', { path });
+}
+
+export async function extractRevision(
+  path: string,
+  signerIndex: number | null,
+): Promise<string> {
+  return invoke<string>('extract_revision', { path, signerIndex });
 }

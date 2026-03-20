@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { signDocument } from '../lib/tauri';
+import { signDocument, TauriTextFieldPlacement } from '../lib/tauri';
 import { SigningStep, useSigningStore } from '../store/signing';
 
 const STATUS_MAP: Record<string, SigningStep> = {
@@ -17,6 +17,7 @@ export function useSign() {
     filePath,
     signatureBase64,
     signaturePlacements,
+    textFieldPlacements,
     userIdentity,
     signingStep,
     setSigningStep,
@@ -44,12 +45,18 @@ export function useSign() {
     setSigningStep('preparing');
 
     try {
+      // Strip the id field and filter empty text fields before sending to Rust
+      const textFieldsForRust: TauriTextFieldPlacement[] = textFieldPlacements
+        .filter((tf) => tf.text.trim().length > 0)
+        .map(({ id, ...rest }) => rest);
+
       const outputPath = await signDocument(
         filePath,
         signatureBase64,
         userIdentity.name,
         userIdentity.email,
-        signaturePlacements
+        signaturePlacements,
+        textFieldsForRust
       );
       setSignedPdfPath(outputPath);
     } catch (err) {

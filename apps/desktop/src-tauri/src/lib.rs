@@ -21,6 +21,7 @@ pub fn run() {
             commands::pdf::sign_document,
             commands::pdf::save_signed_pdf,
             commands::pdf::verify_document,
+            commands::pdf::extract_revision,
             commands::documents::list_documents,
         ])
         .setup(|app| {

@@ -20,6 +20,20 @@ export interface SignaturePlacement {
   height: number;
 }
 
+export type TextFieldType = 'text' | 'date';
+
+export interface TextFieldPlacement {
+  id: string;
+  pageNumber: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  fontSize: number;
+  fieldType: TextFieldType;
+}
+
 export type SigningStep =
   | 'idle'
   | 'preparing'
@@ -38,6 +52,7 @@ interface SigningState {
   pageCount: number;
   signatureBase64: string | null;
   signaturePlacements: SignaturePlacement[];
+  textFieldPlacements: TextFieldPlacement[];
   signingStep: SigningStep;
   signedPdfPath: string | null;
   error: string | null;
@@ -51,6 +66,10 @@ interface SigningState {
   updateSignaturePlacement: (index: number, placement: SignaturePlacement) => void;
   removeSignaturePlacement: (index: number) => void;
   clearSignaturePlacements: () => void;
+  addTextField: (field: TextFieldPlacement) => void;
+  updateTextField: (id: string, updates: Partial<TextFieldPlacement>) => void;
+  removeTextField: (id: string) => void;
+  clearTextFields: () => void;
   setSigningStep: (step: SigningStep) => void;
   setSignedPdfPath: (path: string) => void;
   setError: (error: string) => void;
@@ -63,6 +82,7 @@ const sessionInitialState = {
   pageCount: 0,
   signatureBase64: null as string | null,
   signaturePlacements: [] as SignaturePlacement[],
+  textFieldPlacements: [] as TextFieldPlacement[],
   signingStep: 'idle' as SigningStep,
   signedPdfPath: null as string | null,
   error: null as string | null,
@@ -111,6 +131,25 @@ export const useSigningStore = create<SigningState>((set) => ({
     })),
 
   clearSignaturePlacements: () => set({ signaturePlacements: [] }),
+
+  addTextField: (field) =>
+    set((state) => ({
+      textFieldPlacements: [...state.textFieldPlacements, field],
+    })),
+
+  updateTextField: (id, updates) =>
+    set((state) => ({
+      textFieldPlacements: state.textFieldPlacements.map((tf) =>
+        tf.id === id ? { ...tf, ...updates } : tf,
+      ),
+    })),
+
+  removeTextField: (id) =>
+    set((state) => ({
+      textFieldPlacements: state.textFieldPlacements.filter((tf) => tf.id !== id),
+    })),
+
+  clearTextFields: () => set({ textFieldPlacements: [] }),
 
   setSigningStep: (step) => set({ signingStep: step }),
 
