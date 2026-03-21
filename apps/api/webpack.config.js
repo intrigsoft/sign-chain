@@ -9,6 +9,14 @@ module.exports = {
       devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     }),
   },
+  externals: {
+    '@prisma/client': 'commonjs @prisma/client',
+  },
+  resolve: {
+    alias: {
+      'sign-chain-contracts': join(__dirname, '../../contracts'),
+    },
+  },
   plugins: [
     new NxAppWebpackPlugin({
       target: 'node',

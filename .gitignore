@@ -47,3 +47,18 @@ vite.config.*.timestamp*
 
 # Tauri build artifacts
 apps/desktop/src-tauri/target/
+
+# Hardhat / Solidity
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/.env.local
+
+# Environment files
+apps/api/.env
+
+# Prisma
+apps/api/prisma/migrations/
+
+# Docker
+pgdata/
