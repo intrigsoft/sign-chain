@@ -36,3 +36,6 @@ anyhow = "1"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 flate2 = "1"
+rand = "0.8"
+base64ct = { version = "1", features = ["alloc"] }
+aes-gcm = "0.10"

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as pdfjs from 'pdfjs-dist';
+import { pdfjs } from '../../lib/pdfjs';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useDocuments } from '../../hooks/useDocuments';
 import {
@@ -13,11 +13,6 @@ import {
 import { useSigningStore } from '../../store/signing';
 import FileDropZone from '../../components/FileDropZone';
 import { useTauriFileDrop, type DropZone } from '../../hooks/useTauriFileDrop';
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url,
-).toString();
 
 /** Renders a single page of a revision PDF to a canvas, fit-to-width. */
 function RevisionPage({

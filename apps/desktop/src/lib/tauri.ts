@@ -32,6 +32,11 @@ export async function signDocument(
   signaturePngBase64: string,
   signerName: string,
   signerEmail: string,
+  signerType: string,
+  signerCompany: string | undefined,
+  signerPosition: string | undefined,
+  geoLat: number | undefined,
+  geoLon: number | undefined,
   placements: SignaturePlacement[],
   textFields: TauriTextFieldPlacement[]
 ): Promise<string> {
@@ -40,6 +45,11 @@ export async function signDocument(
     signaturePngBase64,
     signerName,
     signerEmail,
+    signerType,
+    signerCompany: signerCompany ?? null,
+    signerPosition: signerPosition ?? null,
+    geoLat: geoLat ?? null,
+    geoLon: geoLon ?? null,
     placements,
     textFields,
   });
@@ -63,6 +73,7 @@ export interface SignerVerification {
   timestamp: string;
   hash: string;
   status: 'valid' | 'tampered' | 'unverifiable';
+  blockchainVerified: boolean | null;
 }
 
 export interface VerificationResult {

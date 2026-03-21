@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface AnchorEntry {
   txHash: string;
@@ -12,6 +13,7 @@ interface AnchorEntry {
 
 export interface VerifyResult extends AnchorEntry {
   chain: AnchorEntry[];
+  encryptedPayload?: string;
 }
 
 // Simple in-memory cache with 60s TTL
@@ -26,7 +28,10 @@ export class VerifyService {
     'event DocumentAnchored(bytes32 indexed compositeHash, address indexed signer, bytes32 previousTxHash, uint256 timestamp)',
   ]);
 
-  constructor(private blockchain: BlockchainService) {}
+  constructor(
+    private blockchain: BlockchainService,
+    private prisma: PrismaService,
+  ) {}
 
   async verify(txHash: string): Promise<VerifyResult> {
     // Check cache
@@ -45,7 +50,16 @@ export class VerifyService {
       chain.push(current);
     }
 
-    const result: VerifyResult = { ...entry, chain };
+    // Look up encrypted payload from DB
+    const anchor = await this.prisma.anchor.findUnique({
+      where: { txHash },
+    });
+
+    const result: VerifyResult = {
+      ...entry,
+      chain,
+      encryptedPayload: anchor?.encryptedPayload,
+    };
 
     cache.set(txHash, { data: result, expiry: Date.now() + CACHE_TTL });
     return result;

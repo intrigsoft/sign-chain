@@ -19,11 +19,27 @@ export function useSign() {
     signaturePlacements,
     textFieldPlacements,
     userIdentity,
+    geoCoords,
     signingStep,
     setSigningStep,
     setSignedPdfPath,
     setError,
+    setGeoCoords,
   } = useSigningStore();
+
+  // Request geolocation on mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGeoCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        },
+        () => {
+          // User denied or error — geo stays null (optional field)
+        }
+      );
+    }
+  }, [setGeoCoords]);
 
   // Listen for signing status events from Rust
   useEffect(() => {
@@ -45,7 +61,6 @@ export function useSign() {
     setSigningStep('preparing');
 
     try {
-      // Strip the id field and filter empty text fields before sending to Rust
       const textFieldsForRust: TauriTextFieldPlacement[] = textFieldPlacements
         .filter((tf) => tf.text.trim().length > 0)
         .map(({ id, ...rest }) => rest);
@@ -55,6 +70,11 @@ export function useSign() {
         signatureBase64,
         userIdentity.name,
         userIdentity.email,
+        userIdentity.signerType,
+        userIdentity.company,
+        userIdentity.position,
+        geoCoords?.lat,
+        geoCoords?.lon,
         signaturePlacements,
         textFieldsForRust
       );

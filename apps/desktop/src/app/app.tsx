@@ -1,6 +1,8 @@
 import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSigningStore } from '../store/signing';
+import { useFileOpen } from '../hooks/useFileOpen';
+import FileOpenChooser from '../components/FileOpenChooser';
 
 import IdentityPage from '../routes/identity';
 import DashboardPage from '../routes/dashboard';
@@ -24,10 +26,16 @@ function RequireIdentity({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function FileOpenListener() {
+  useFileOpen();
+  return <FileOpenChooser />;
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
+        <FileOpenListener />
         <Routes>
           <Route path="/" element={<IdentityPage />} />
           <Route

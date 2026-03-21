@@ -32,26 +32,32 @@ interface SignaturePlacerProps {
 
 const MIN_SIZE = 40;
 const MIN_FIELD_WIDTH = 60;
+// Must match embed.rs: placement.height.max(34.0)
+const QR_MIN_PT = 34;
 
 // ---------------------------------------------------------------------------
 // QR placeholder (unchanged)
 // ---------------------------------------------------------------------------
 function QrPlaceholder({
-  height,
+  sigHeight,
+  scale,
   borderColor,
 }: {
-  height: number;
+  sigHeight: number;
+  scale: number;
   borderColor: string;
 }) {
+  // Match Rust: qr_size = placement.height.max(34.0), placed 4pt right
+  const qrSize = Math.max(sigHeight, QR_MIN_PT * scale);
   return (
     <div
       style={{
         position: 'absolute',
         left: '100%',
         top: 0,
-        width: height,
-        height: height,
-        marginLeft: 4,
+        width: qrSize,
+        height: qrSize,
+        marginLeft: 4 * scale,
         border: `2px dashed ${borderColor}`,
         borderRadius: 4,
         display: 'flex',
@@ -375,7 +381,8 @@ export default function SignaturePlacer({
     pageInfo: PageInfo,
   ) => {
     if (!isResizing) return;
-    const wrapper = e.currentTarget.parentElement as HTMLElement;
+    // e.currentTarget = resize handle, parent = sig block, grandparent = page wrapper
+    const wrapper = e.currentTarget.parentElement?.parentElement as HTMLElement;
     const rect = wrapper.getBoundingClientRect();
     const maxW = pageInfo.widthPts * scale;
     const maxH = pageInfo.heightPts * scale;
@@ -625,7 +632,7 @@ export default function SignaturePlacer({
                             pointerEvents: 'none',
                           }}
                         />
-                        <QrPlaceholder height={cp.h} borderColor={borderColor} />
+                        <QrPlaceholder sigHeight={cp.h} scale={scale} borderColor={borderColor} />
 
                         {isSelected && (
                           <button

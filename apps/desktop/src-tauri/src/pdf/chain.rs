@@ -45,6 +45,20 @@ pub struct SignerRecord {
     pub placements: Vec<PlacementRecord>,
     #[serde(default)]
     pub text_fields: Vec<TextFieldRecord>,
+    #[serde(default)]
+    pub composite_hash: String,
+    #[serde(default)]
+    pub tx_hash: String,
+    #[serde(default)]
+    pub salt: String,
+    #[serde(default)]
+    pub signer_type: Option<String>,
+    #[serde(default)]
+    pub company: Option<String>,
+    #[serde(default)]
+    pub position: Option<String>,
+    #[serde(default)]
+    pub geo: Option<(f64, f64)>,
 }
 
 /// Top-level chain metadata embedded in the PDF.

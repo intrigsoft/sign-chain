@@ -35,7 +35,13 @@ export default function SigningProgress() {
     }
   };
 
-  const handleDone = () => {
+  const handleBack = () => {
+    reset();
+    // Go back to sign placement screen (keeps file + signature in store)
+    navigate('/sign');
+  };
+
+  const handleCancel = () => {
     reset();
     navigate('/dashboard');
   };
@@ -74,6 +80,21 @@ export default function SigningProgress() {
             )}
           </div>
           <button
+            onClick={handleBack}
+            style={{
+              padding: '10px 20px',
+              background: '#f3f4f6',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 14,
+              flexShrink: 0,
+            }}
+          >
+            &larr; Back
+          </button>
+          <button
             onClick={handleSaveAs}
             disabled={saving}
             style={{
@@ -90,19 +111,19 @@ export default function SigningProgress() {
             {saving ? 'Saving...' : savedPath ? 'Save As...' : 'Save'}
           </button>
           <button
-            onClick={handleDone}
+            onClick={handleCancel}
             style={{
               padding: '10px 20px',
-              background: '#2563eb',
-              color: '#fff',
-              border: 'none',
+              background: '#fee2e2',
+              color: '#dc2626',
+              border: '1px solid #fca5a5',
               borderRadius: 8,
               cursor: 'pointer',
               fontSize: 14,
               flexShrink: 0,
             }}
           >
-            Done
+            Cancel
           </button>
         </div>
 

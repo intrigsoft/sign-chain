@@ -57,6 +57,15 @@ export class RelayerService {
       `Anchored ${dto.compositeHash} in tx ${receipt.hash} (block ${receipt.blockNumber})`
     );
 
+    // Store encrypted payload
+    await this.prisma.anchor.create({
+      data: {
+        txHash: receipt.hash,
+        compositeHash: dto.compositeHash,
+        encryptedPayload: dto.encryptedPayload,
+      },
+    });
+
     // Increment anchor count
     await this.prisma.user.update({
       where: { id: userId },

@@ -6,6 +6,9 @@ export class RelayRequestDto {
 
   @IsString()
   previousTxHash: string;
+
+  @IsString()
+  encryptedPayload: string;
 }
 
 export class RelayResponseDto {

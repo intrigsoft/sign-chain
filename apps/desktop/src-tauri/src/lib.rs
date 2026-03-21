@@ -1,13 +1,16 @@
+mod anchor;
 mod commands;
+mod payload;
 mod pdf;
 mod state;
 
 use state::AppState;
+use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app_state = AppState {
-        api_base: "http://localhost:3000".to_string(),
+        api_base: "http://localhost:3000/api".to_string(),
         http: reqwest::Client::new(),
     };
 
@@ -34,6 +37,18 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Opened { urls } = event {
+                // File associations pass file paths as file:// URLs
+                for url in urls {
+                    if let Ok(path) = url.to_file_path() {
+                        if let Some(path_str) = path.to_str() {
+                            let _ = app.emit("file-open", path_str.to_string());
+                        }
+                    }
+                }
+            }
+        });
 }

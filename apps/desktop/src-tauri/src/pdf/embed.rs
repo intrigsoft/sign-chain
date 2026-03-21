@@ -7,11 +7,164 @@ use lopdf::{
     content::{Content, Operation},
     dictionary, Document, Object, ObjectId, Stream,
 };
-use qrcode::QrCode;
+use qrcode::{QrCode, Version, EcLevel};
 use std::collections::BTreeMap;
 use std::io::Write;
 
 use crate::commands::pdf::{SignaturePlacement, TextFieldPlacement};
+
+/// Extract the initial CTM (cm operator) from a page's first content stream and
+/// return the inverse matrix [a, b, c, d, e, f]. If there is no initial cm or
+/// the matrix is already the identity, returns None.
+///
+/// This is needed because some PDF generators (e.g. Microsoft Print to PDF) apply
+/// a persistent transform like `[0.75, 0, 0, -0.75, 0, 1008] cm` at the very
+/// start of the content stream. Appended content streams inherit this transform,
+/// so we must undo it before placing our own objects.
+pub fn compute_ctm_reset(
+    doc: &Document,
+    page_id: ObjectId,
+) -> Result<Option<[f32; 6]>> {
+    let page = doc
+        .get_object(page_id)
+        .and_then(|o| o.as_dict().map_err(Into::into))
+        .ok()
+        .ok_or_else(|| anyhow::anyhow!("Page not found"))?;
+
+    // Get the first content stream reference
+    let first_stream_id = match page.get(b"Contents") {
+        Ok(Object::Array(arr)) => match arr.first() {
+            Some(Object::Reference(id)) => *id,
+            _ => return Ok(None),
+        },
+        Ok(Object::Reference(id)) => *id,
+        _ => return Ok(None),
+    };
+
+    // Read and decode the stream
+    let stream_content = doc.get_object(first_stream_id)
+        .ok()
+        .and_then(|obj| {
+            if let Object::Stream(ref s) = *obj {
+                // Try to decompress, fall back to raw bytes
+                let mut s = s.clone();
+                let _ = s.decompress();
+                Some(s.content.clone())
+            } else {
+                None
+            }
+        });
+
+    let Some(bytes) = stream_content else {
+        return Ok(None);
+    };
+
+    // Parse content stream and find the very first operation
+    let content = Content::decode(&bytes)?;
+    let first_cm = content.operations.iter().find(|op| op.operator == "cm");
+
+    let Some(cm) = first_cm else {
+        return Ok(None);
+    };
+
+    if cm.operands.len() != 6 {
+        return Ok(None);
+    }
+
+    let vals: Vec<f32> = cm
+        .operands
+        .iter()
+        .map(|o| match o {
+            Object::Real(r) => *r,
+            Object::Integer(i) => *i as f32,
+            _ => 0.0,
+        })
+        .collect();
+
+    let [a, b, c, d, e, f] = [vals[0], vals[1], vals[2], vals[3], vals[4], vals[5]];
+
+    // Check if already identity (no reset needed)
+    if (a - 1.0).abs() < 1e-6
+        && b.abs() < 1e-6
+        && c.abs() < 1e-6
+        && (d - 1.0).abs() < 1e-6
+        && e.abs() < 1e-6
+        && f.abs() < 1e-6
+    {
+        return Ok(None);
+    }
+
+    // Compute inverse: for [a,b,c,d,e,f], det = a*d - b*c
+    let det = a * d - b * c;
+    if det.abs() < 1e-9 {
+        return Ok(None); // singular matrix, can't invert
+    }
+
+    let inv = [
+        d / det,
+        -b / det,
+        -c / det,
+        a / det,
+        (c * f - d * e) / det,
+        (b * e - a * f) / det,
+    ];
+
+    Ok(Some(inv))
+}
+
+/// Apply pre-computed CTM inverse matrices to reset the coordinate system on
+/// target pages. Each entry in `ctm_inverses` is (page_number, inverse_matrix).
+/// Must be called BEFORE embedding signatures/text/QR.
+pub fn apply_ctm_resets(
+    doc: &mut Document,
+    page_ids: &BTreeMap<u32, ObjectId>,
+    ctm_inverses: &[(u32, [f32; 6])],
+) -> Result<()> {
+    for &(page_num, inv) in ctm_inverses {
+        let page_id = page_ids
+            .get(&page_num)
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("Page {} not found", page_num))?;
+
+        let ops = vec![Operation::new(
+            "cm",
+            vec![
+                Object::Real(inv[0]),
+                Object::Real(inv[1]),
+                Object::Real(inv[2]),
+                Object::Real(inv[3]),
+                Object::Real(inv[4]),
+                Object::Real(inv[5]),
+            ],
+        )];
+
+        let content = Content { operations: ops };
+        let content_bytes = content.encode()?;
+        let content_id = doc.add_object(Stream::new(dictionary! {}, content_bytes));
+
+        // Append the CTM reset stream to the page's Contents array
+        if let Ok(Object::Dictionary(ref mut page)) = doc.get_object_mut(page_id) {
+            let existing_contents = page.get(b"Contents").cloned();
+            match existing_contents {
+                Ok(Object::Array(mut arr)) => {
+                    arr.push(Object::Reference(content_id));
+                    page.set("Contents", Object::Array(arr));
+                }
+                Ok(existing) => {
+                    page.set(
+                        "Contents",
+                        Object::Array(vec![existing, Object::Reference(content_id)]),
+                    );
+                }
+                Err(_) => {
+                    page.set("Contents", Object::Reference(content_id));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
 
 /// Decode PNG base64 → raw RGB + alpha, compress with flate2, and add as PDF XObjects.
 /// Returns (rgb_object_id) with SMask referencing the alpha channel.
@@ -346,8 +499,9 @@ pub fn embed_qr_with_tx(
 ) -> Result<()> {
 
     // Generate QR code image once as raw grayscale pixels
-    let code = QrCode::new(tx_hash.as_bytes())?;
-    let qr_image = code.render::<Luma<u8>>().min_dimensions(150, 150).build();
+    // Version 5 (37×37 modules), EC Level L (7% error recovery), 106 byte capacity
+    let code = QrCode::with_version(tx_hash.as_bytes(), Version::Normal(5), EcLevel::L)?;
+    let qr_image = code.render::<Luma<u8>>().min_dimensions(570, 570).build();
     let (qr_w, qr_h) = qr_image.dimensions();
     let raw_gray = qr_image.into_raw();
     let compressed = zlib_compress(&raw_gray)?;
@@ -373,8 +527,8 @@ pub fn embed_qr_with_tx(
             .copied()
             .ok_or_else(|| anyhow::anyhow!("Page {} not found", placement.page_number))?;
 
-        // Place QR as a square matching the signature height, flush-right
-        let qr_size = placement.height;
+        // Place QR as a square matching the signature height, minimum 34pt (~12mm)
+        let qr_size = placement.height.max(34.0);
         let qr_x = placement.x + placement.width + 4.0;
         let qr_y = placement.y;
 

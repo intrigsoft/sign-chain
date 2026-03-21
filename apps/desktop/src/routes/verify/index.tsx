@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import * as pdfjs from 'pdfjs-dist';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { pdfjs } from '../../lib/pdfjs';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import {
   extractRevision,
@@ -8,11 +8,6 @@ import {
   verifyDocument,
   VerificationResult,
 } from '../../lib/tauri';
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url,
-).toString();
 
 const CONTAINER_WIDTH = 640;
 
@@ -183,6 +178,7 @@ function RevisionPage({
 
 export default function VerifyPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<VerificationResult | null>(null);
@@ -190,6 +186,21 @@ export default function VerifyPage() {
   const [filePath, setFilePath] = useState<string | null>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Auto-verify if opened via "Open With" / file association
+  useEffect(() => {
+    const state = location.state as { filePath?: string } | null;
+    if (state?.filePath) {
+      const path = state.filePath;
+      setFilePath(path);
+      setFileName(path.split(/[\\/]/).pop() ?? path);
+      setLoading(true);
+      verifyDocument(path)
+        .then((r) => setResult(r))
+        .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+        .finally(() => setLoading(false));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePickFile = async () => {
     setError(null);
@@ -421,8 +432,46 @@ export default function VerifyPage() {
                 <div style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>
                   <div>Signed {new Date(s.timestamp).toLocaleString()}</div>
                   <div style={{ fontFamily: 'monospace', marginTop: 2 }}>
-                    Hash: 0x{s.hash.slice(0, 8)}...{s.hash.slice(-8)}
+                    Hash: {s.hash.slice(0, 10)}...{s.hash.slice(-7)}
                   </div>
+                  {s.blockchainVerified !== null && s.blockchainVerified !== undefined && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '2px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        background: s.blockchainVerified ? '#f0fdf4' : '#fef2f2',
+                        color: s.blockchainVerified ? '#16a34a' : '#ef4444',
+                        border: `1px solid ${s.blockchainVerified ? '#bbf7d0' : '#fecaca'}`,
+                      }}
+                    >
+                      {s.blockchainVerified ? '\u26D3 Blockchain verified' : '\u26A0 Blockchain mismatch'}
+                    </div>
+                  )}
+                  {s.blockchainVerified === null && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '2px 8px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        background: '#fffbeb',
+                        color: '#d97706',
+                        border: '1px solid #fde68a',
+                      }}
+                    >
+                      Blockchain status unavailable (offline or legacy signature)
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

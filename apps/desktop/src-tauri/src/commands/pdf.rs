@@ -1,14 +1,18 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use base64ct::Encoding;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::anchor;
+use crate::payload::{self, GeoLocation, SignerInfo};
 use crate::pdf::{
     chain::{self, PlacementRecord, SignChainMeta, SignerRecord, TextFieldRecord},
     embed, hash, normalise,
 };
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,10 +59,16 @@ pub async fn get_pdf_page_count(path: String) -> Result<u32, String> {
 #[tauri::command]
 pub async fn sign_document(
     app: AppHandle,
+    state: tauri::State<'_, AppState>,
     path: String,
     signature_png_base64: String,
     signer_name: String,
     signer_email: String,
+    signer_type: String,
+    signer_company: Option<String>,
+    signer_position: Option<String>,
+    geo_lat: Option<f64>,
+    geo_lon: Option<f64>,
     placements: Vec<SignaturePlacement>,
     text_fields: Vec<TextFieldPlacement>,
 ) -> Result<String, String> {
@@ -107,33 +117,60 @@ pub async fn sign_document(
         })
         .collect();
 
+    let signer_info = SignerInfo {
+        signer_type: signer_type.clone(),
+        name: signer_name.clone(),
+        email: signer_email.clone(),
+        company: signer_company.clone(),
+        position: signer_position.clone(),
+    };
+
+    let geo = match (geo_lat, geo_lon) {
+        (Some(lat), Some(lon)) => Some(GeoLocation { lat, lon }),
+        _ => None,
+    };
+
     let final_pdf = if is_first_signer {
         sign_first(
             &app,
+            &state,
             &pdf_bytes,
             &input_file_hash,
             &signature_png_base64,
             &signer_name,
             &signer_email,
+            &signer_type,
+            &signer_company,
+            &signer_position,
+            &geo,
+            &signer_info,
             &placements,
             &placement_records,
             &text_fields,
             &text_field_records,
-        )?
+        )
+        .await?
     } else {
         sign_subsequent(
             &app,
+            &state,
             &pdf_bytes,
             &input_file_hash,
             &signature_png_base64,
             &signer_name,
             &signer_email,
+            &signer_type,
+            &signer_company,
+            &signer_position,
+            &geo,
+            &signer_info,
             &placements,
             &placement_records,
             &text_fields,
             &text_field_records,
             existing_chain.unwrap(),
-        )?
+        )
+        .await?
     };
 
     // Write to temp directory for preview; user saves via save dialog later
@@ -195,11 +232,61 @@ fn clone_mutable_objects(
             .opt_clone_object_to_new_document(id)
             .map_err(|e| format!("Failed to clone Info dict: {e}"))?;
     }
-    for page_num in pages_to_clone {
-        if let Some(&page_id) = page_ids.get(&page_num) {
-            inc_doc
-                .opt_clone_object_to_new_document(page_id)
-                .map_err(|e| format!("Failed to clone page: {e}"))?;
+    // Collect page IDs to clone
+    let page_ids_to_clone: Vec<lopdf::ObjectId> = pages_to_clone
+        .iter()
+        .filter_map(|pn| page_ids.get(pn).copied())
+        .collect();
+
+    for page_id in &page_ids_to_clone {
+        inc_doc
+            .opt_clone_object_to_new_document(*page_id)
+            .map_err(|e| format!("Failed to clone page: {e}"))?;
+    }
+
+    // Deep-clone Resources (and nested XObject/Font dicts) so embed functions
+    // can modify them. Pages often store Resources as a Reference to an object
+    // in the previous document — without cloning, the embed functions silently
+    // fail to register XObject entries for signature/QR images.
+    for &page_id in &page_ids_to_clone {
+        let inlined_resources = {
+            let prev = inc_doc.get_prev_documents();
+            let page = match prev.get_object(page_id) {
+                Ok(lopdf::Object::Dictionary(d)) => d,
+                _ => continue,
+            };
+            match page.get(b"Resources") {
+                Ok(lopdf::Object::Reference(res_id)) => {
+                    match prev.get_object(*res_id) {
+                        Ok(res_obj) => {
+                            let mut resources = res_obj.clone();
+                            // Also inline nested XObject/Font dicts if they are References
+                            if let lopdf::Object::Dictionary(ref mut res_dict) = resources {
+                                for key in &[b"XObject".as_ref(), b"Font".as_ref()] {
+                                    if let Ok(lopdf::Object::Reference(nested_id)) =
+                                        res_dict.get(key)
+                                    {
+                                        if let Ok(nested_obj) = prev.get_object(*nested_id) {
+                                            res_dict.set(*key, nested_obj.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            Some(resources)
+                        }
+                        Err(_) => None,
+                    }
+                }
+                _ => None, // already inline or missing — embed functions handle these
+            }
+        };
+
+        if let Some(resources) = inlined_resources {
+            if let Ok(lopdf::Object::Dictionary(ref mut page)) =
+                inc_doc.new_document.get_object_mut(page_id)
+            {
+                page.set("Resources", resources);
+            }
         }
     }
 
@@ -207,14 +294,20 @@ fn clone_mutable_objects(
 }
 
 /// First signer: load as IncrementalDocument (preserves original bytes) →
-/// normalise → embed sig → hash → embed QR → write chain → save incrementally.
-fn sign_first(
+/// normalise → embed sig → hash → anchor → embed QR → write chain → save incrementally.
+async fn sign_first(
     app: &AppHandle,
+    state: &AppState,
     pdf_bytes: &[u8],
     input_file_hash: &str,
     signature_png_base64: &str,
     signer_name: &str,
     signer_email: &str,
+    signer_type: &str,
+    signer_company: &Option<String>,
+    signer_position: &Option<String>,
+    geo: &Option<GeoLocation>,
+    signer_info: &SignerInfo,
     placements: &[SignaturePlacement],
     placement_records: &[PlacementRecord],
     text_fields: &[TextFieldPlacement],
@@ -232,6 +325,21 @@ fn sign_first(
     // Step 1: Normalise (operates on new_document — original bytes untouched)
     normalise::normalise_pdf(&mut inc_doc.new_document)
         .map_err(|e| format!("Normalisation failed: {e}"))?;
+
+    // Step 1b: Reset CTM — undo any transform the existing content streams left active.
+    // Compute inverses from prev_documents first, then apply to new_document (avoids borrow conflict).
+    {
+        let target_pages: Vec<u32> = placements.iter().map(|p| p.page_number)
+            .chain(text_fields.iter().map(|t| t.page_number))
+            .collect::<std::collections::HashSet<_>>().into_iter().collect();
+        let ctm_inverses: Vec<(u32, [f32; 6])> = target_pages.iter().filter_map(|&pn| {
+            let pid = page_ids.get(&pn)?;
+            let inv = embed::compute_ctm_reset(inc_doc.get_prev_documents(), *pid).ok()??;
+            Some((pn, inv))
+        }).collect();
+        embed::apply_ctm_resets(&mut inc_doc.new_document, &page_ids, &ctm_inverses)
+            .map_err(|e| format!("CTM reset failed: {e}"))?;
+    }
 
     // Step 2: Embed signature block
     let _ = app.emit("signing:status", "embedding");
@@ -255,17 +363,39 @@ fn sign_first(
         .map_err(|e| format!("Failed to serialize PDF: {e}"))?;
     let doc_hash = hash::sha256_hash(&with_sig);
 
-    // Step 4: Anchor (stubbed — fake tx hash)
+    // Step 4: Build payload, encrypt, and anchor on-chain
     let _ = app.emit("signing:status", "anchoring");
-    let tx_hash = format!("0x{}", &doc_hash[..40]);
-    let qr_payload = format!("https://signchain.com/p/{}", tx_hash);
+    let (json_payload, composite_hash) =
+        payload::build_payload(&doc_hash, signer_info.clone(), geo.clone())
+            .map_err(|e| format!("Payload build failed: {e}"))?;
+
+    let (enc_key, ciphertext) = payload::encrypt_payload(json_payload.as_bytes())
+        .map_err(|e| format!("Encryption failed: {e}"))?;
+    let encrypted_payload_b64 = base64ct::Base64UrlUnpadded::encode_string(&ciphertext);
+
+    let relay_req = anchor::RelayRequest {
+        composite_hash: composite_hash.clone(),
+        previous_tx_hash: "0x0000000000000000000000000000000000000000000000000000000000000000"
+            .to_string(),
+        encrypted_payload: encrypted_payload_b64,
+    };
+    let relay_resp = anchor::relay(&state.http, &state.api_base, &relay_req).await?;
+    let tx_hash = relay_resp.tx_hash.clone();
+
+    let qr_url = payload::build_qr_url(&tx_hash, &enc_key)
+        .map_err(|e| format!("QR URL build failed: {e}"))?;
+
+    // Extract salt from the payload for the signer record
+    let parsed_payload: serde_json::Value = serde_json::from_str(&json_payload)
+        .map_err(|e| format!("Failed to re-parse payload: {e}"))?;
+    let salt = parsed_payload["salt"].as_str().unwrap_or("").to_string();
 
     // Step 5: Embed QR with tx hash
     let _ = app.emit("signing:status", "finalising");
     embed::embed_qr_with_tx(
         &mut inc_doc.new_document,
         &page_ids,
-        &qr_payload,
+        &qr_url,
         placements,
     )
     .map_err(|e| format!("QR embedding failed: {e}"))?;
@@ -278,14 +408,21 @@ fn sign_first(
         doc_hash,
         prev_doc_hash: None,
         input_file_hash: input_file_hash.to_string(),
-        qr_url: qr_payload,
-        eof_byte_offset: 0, // placeholder — set after save
+        qr_url,
+        eof_byte_offset: 0,
         placements: placement_records.to_vec(),
         text_fields: text_field_records.to_vec(),
+        composite_hash,
+        tx_hash,
+        salt,
+        signer_type: Some(signer_type.to_string()),
+        company: signer_company.clone(),
+        position: signer_position.clone(),
+        geo: geo.as_ref().map(|g| (g.lat, g.lon)),
     };
 
     let meta = SignChainMeta {
-        version: 1,
+        version: 2,
         signatures: vec![signer_record],
     };
     chain::write_chain(&mut inc_doc.new_document, &meta)
@@ -304,14 +441,20 @@ fn sign_first(
 }
 
 /// Subsequent signer: verify chain → load incremental → embed sig → hash →
-/// embed QR → append chain → save incrementally.
-fn sign_subsequent(
+/// anchor → embed QR → append chain → save incrementally.
+async fn sign_subsequent(
     app: &AppHandle,
+    state: &AppState,
     pdf_bytes: &[u8],
     input_file_hash: &str,
     signature_png_base64: &str,
     signer_name: &str,
     signer_email: &str,
+    signer_type: &str,
+    signer_company: &Option<String>,
+    signer_position: &Option<String>,
+    geo: &Option<GeoLocation>,
+    signer_info: &SignerInfo,
     placements: &[SignaturePlacement],
     placement_records: &[PlacementRecord],
     text_fields: &[TextFieldPlacement],
@@ -351,6 +494,20 @@ fn sign_subsequent(
     // Clone target pages and catalog into new_document
     let page_ids = clone_mutable_objects(&mut inc_doc, placements, text_fields)?;
 
+    // Step 0b: Reset CTM — undo any transform the existing content streams left active.
+    {
+        let target_pages: Vec<u32> = placements.iter().map(|p| p.page_number)
+            .chain(text_fields.iter().map(|t| t.page_number))
+            .collect::<std::collections::HashSet<_>>().into_iter().collect();
+        let ctm_inverses: Vec<(u32, [f32; 6])> = target_pages.iter().filter_map(|&pn| {
+            let pid = page_ids.get(&pn)?;
+            let inv = embed::compute_ctm_reset(inc_doc.get_prev_documents(), *pid).ok()??;
+            Some((pn, inv))
+        }).collect();
+        embed::apply_ctm_resets(&mut inc_doc.new_document, &page_ids, &ctm_inverses)
+            .map_err(|e| format!("CTM reset failed: {e}"))?;
+    }
+
     // Step 1: Embed signature block (skip normalisation — already done by first signer)
     let _ = app.emit("signing:status", "embedding");
     embed::embed_signature_block(
@@ -373,17 +530,46 @@ fn sign_subsequent(
         .map_err(|e| format!("Failed to serialize PDF: {e}"))?;
     let doc_hash = hash::sha256_hash(&with_sig);
 
-    // Step 3: Anchor (stubbed)
+    // Step 3: Build payload, encrypt, and anchor on-chain
     let _ = app.emit("signing:status", "anchoring");
-    let tx_hash = format!("0x{}", &doc_hash[..40]);
-    let qr_payload = format!("https://signchain.com/p/{}", tx_hash);
+    let (json_payload, composite_hash) =
+        payload::build_payload(&doc_hash, signer_info.clone(), geo.clone())
+            .map_err(|e| format!("Payload build failed: {e}"))?;
+
+    let (enc_key, ciphertext) = payload::encrypt_payload(json_payload.as_bytes())
+        .map_err(|e| format!("Encryption failed: {e}"))?;
+    let encrypted_payload_b64 = base64ct::Base64UrlUnpadded::encode_string(&ciphertext);
+
+    // Get previous tx hash from the last signer's record
+    let previous_tx_hash = existing_meta
+        .signatures
+        .last()
+        .map(|s| s.tx_hash.clone())
+        .unwrap_or_else(|| {
+            "0x0000000000000000000000000000000000000000000000000000000000000000".to_string()
+        });
+
+    let relay_req = anchor::RelayRequest {
+        composite_hash: composite_hash.clone(),
+        previous_tx_hash,
+        encrypted_payload: encrypted_payload_b64,
+    };
+    let relay_resp = anchor::relay(&state.http, &state.api_base, &relay_req).await?;
+    let tx_hash = relay_resp.tx_hash.clone();
+
+    let qr_url = payload::build_qr_url(&tx_hash, &enc_key)
+        .map_err(|e| format!("QR URL build failed: {e}"))?;
+
+    let parsed_payload: serde_json::Value = serde_json::from_str(&json_payload)
+        .map_err(|e| format!("Failed to re-parse payload: {e}"))?;
+    let salt = parsed_payload["salt"].as_str().unwrap_or("").to_string();
 
     // Step 4: Embed QR
     let _ = app.emit("signing:status", "finalising");
     embed::embed_qr_with_tx(
         &mut inc_doc.new_document,
         &page_ids,
-        &qr_payload,
+        &qr_url,
         placements,
     )
     .map_err(|e| format!("QR embedding failed: {e}"))?;
@@ -401,12 +587,20 @@ fn sign_subsequent(
         doc_hash,
         prev_doc_hash,
         input_file_hash: input_file_hash.to_string(),
-        qr_url: qr_payload,
-        eof_byte_offset: 0, // placeholder
+        qr_url,
+        eof_byte_offset: 0,
         placements: placement_records.to_vec(),
         text_fields: text_field_records.to_vec(),
+        composite_hash,
+        tx_hash,
+        salt,
+        signer_type: Some(signer_type.to_string()),
+        company: signer_company.clone(),
+        position: signer_position.clone(),
+        geo: geo.as_ref().map(|g| (g.lat, g.lon)),
     };
     existing_meta.signatures.push(signer_record);
+    existing_meta.version = 2;
 
     // Write updated chain metadata
     chain::write_chain(&mut inc_doc.new_document, &existing_meta)
@@ -431,6 +625,7 @@ pub struct SignerVerification {
     pub timestamp: String,
     pub hash: String,
     pub status: String, // "valid" | "tampered" | "unverifiable"
+    pub blockchain_verified: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -442,12 +637,13 @@ pub struct VerificationResult {
 }
 
 #[tauri::command]
-pub async fn verify_document(path: String) -> Result<VerificationResult, String> {
+pub async fn verify_document(
+    state: tauri::State<'_, AppState>,
+    path: String,
+) -> Result<VerificationResult, String> {
     let pdf_bytes =
         std::fs::read(&path).map_err(|e| format!("Failed to read PDF: {e}"))?;
 
-    // Try loading via lopdf; if that fails (e.g. cross-reference stream PDFs
-    // with incremental layers), fall back to raw byte extraction.
     let meta = match lopdf::Document::load_mem(&pdf_bytes) {
         Ok(doc) => chain::read_chain(&doc)
             .map_err(|e| format!("Failed to read chain: {e}"))?,
@@ -468,7 +664,6 @@ pub async fn verify_document(path: String) -> Result<VerificationResult, String>
 
     for (i, record) in meta.signatures.iter().enumerate() {
         let status = if i == 0 {
-            // First signer: prevDocHash must be None
             if record.prev_doc_hash.is_none() {
                 "valid".to_string()
             } else {
@@ -476,7 +671,6 @@ pub async fn verify_document(path: String) -> Result<VerificationResult, String>
                 "tampered".to_string()
             }
         } else {
-            // Subsequent signers: prevDocHash must match previous signer's docHash
             let prev = &meta.signatures[i - 1];
             if record.prev_doc_hash.as_deref() == Some(&prev.doc_hash) {
                 "valid".to_string()
@@ -486,12 +680,35 @@ pub async fn verify_document(path: String) -> Result<VerificationResult, String>
             }
         };
 
+        // Blockchain verification: compare on-chain compositeHash with stored record
+        let mut blockchain_verified: Option<bool> = None;
+
+        if !record.composite_hash.is_empty() && !record.tx_hash.is_empty() {
+            let verify_url = format!("{}/verify/{}", state.api_base, record.tx_hash);
+            match state.http.get(&verify_url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    if let Ok(body) = resp.json::<serde_json::Value>().await {
+                        let on_chain_hash = body["compositeHash"]
+                            .as_str()
+                            .unwrap_or("");
+                        blockchain_verified =
+                            Some(on_chain_hash == record.composite_hash);
+                    }
+                }
+                _ => {
+                    // Offline or API error — can't verify blockchain
+                    blockchain_verified = None;
+                }
+            }
+        }
+
         signers.push(SignerVerification {
             signer: record.signer.clone(),
             email: record.email.clone(),
             timestamp: record.timestamp.clone(),
             hash: record.doc_hash.clone(),
             status,
+            blockchain_verified,
         });
     }
 

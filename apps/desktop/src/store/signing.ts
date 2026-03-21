@@ -3,6 +3,9 @@ import { create } from 'zustand';
 export interface UserIdentity {
   name: string;
   email: string;
+  signerType: 'individual' | 'company';
+  company?: string;
+  position?: string;
 }
 
 export interface SavedSignature {
@@ -46,6 +49,7 @@ export type SigningStep =
 
 interface SigningState {
   userIdentity: UserIdentity | null;
+  geoCoords: { lat: number; lon: number } | null;
   savedSignatures: SavedSignature[];
   filePath: string | null;
   fileName: string | null;
@@ -56,8 +60,10 @@ interface SigningState {
   signingStep: SigningStep;
   signedPdfPath: string | null;
   error: string | null;
+  openedFile: string | null;
 
   setUserIdentity: (identity: UserIdentity) => void;
+  setGeoCoords: (coords: { lat: number; lon: number } | null) => void;
   addSavedSignature: (base64: string, label: string) => void;
   removeSavedSignature: (id: string) => void;
   setFile: (path: string, name: string, pageCount: number) => void;
@@ -73,6 +79,7 @@ interface SigningState {
   setSigningStep: (step: SigningStep) => void;
   setSignedPdfPath: (path: string) => void;
   setError: (error: string) => void;
+  setOpenedFile: (path: string | null) => void;
   reset: () => void;
 }
 
@@ -90,10 +97,13 @@ const sessionInitialState = {
 
 export const useSigningStore = create<SigningState>((set) => ({
   userIdentity: null,
+  geoCoords: null,
   savedSignatures: [],
+  openedFile: null,
   ...sessionInitialState,
 
   setUserIdentity: (identity) => set({ userIdentity: identity }),
+  setGeoCoords: (coords) => set({ geoCoords: coords }),
 
   addSavedSignature: (base64, label) =>
     set((state) => ({
@@ -156,6 +166,8 @@ export const useSigningStore = create<SigningState>((set) => ({
   setSignedPdfPath: (path) => set({ signedPdfPath: path }),
 
   setError: (error) => set({ error, signingStep: 'error' }),
+
+  setOpenedFile: (path) => set({ openedFile: path }),
 
   reset: () => set(sessionInitialState),
 }));
