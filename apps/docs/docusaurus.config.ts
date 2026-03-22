@@ -58,6 +58,12 @@ const config: Config = {
           position: 'left',
           label: 'Documentation',
         },
+        {
+          href: 'https://github.com/intrigsoft/sign-chain',
+          position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'GitHub repository',
+        },
       ],
     },
     footer: {

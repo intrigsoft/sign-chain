@@ -27,7 +27,7 @@ Traditional signatures depend on a certificate authority (CA) hierarchy. If your
 
 SignChain anchors on a public blockchain. The proof exists independently of any company, CA, or server. Even if IntrigSoft disappears, the on-chain record remains verifiable by anyone.
 
-### vs. Centralized Signing Services (DocuSign, etc.)
+### vs. Centralized Signing Services
 
 Centralized services are the sole authority on whether a signature is valid. You trust them completely -- with the document content, signer identity, and the validity determination.
 

@@ -40,7 +40,7 @@ If the QR code is destroyed or the printed document is lost, the encryption key 
 
 ## Comparison Matrix
 
-| Property | SignChain | PKI / X.509 | DocuSign | Notary |
+| Property | SignChain | PKI / X.509 | Centralized Services | Notary |
 |---|---|---|---|---|
 | Tamper evidence | Yes | Yes | Yes | No |
 | No trusted third party | Yes | No (CA) | No | No |
