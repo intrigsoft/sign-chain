@@ -502,8 +502,6 @@ pub fn embed_qr_with_tx(
     // Version 6 (41×41 modules), EC Level M (15% error recovery), 106 byte capacity
     let code = QrCode::with_version(tx_hash.as_bytes(), Version::Normal(6), EcLevel::M)?;
     let qr_image = code.render::<Luma<u8>>().min_dimensions(570, 570).build();
-    // Flip horizontally — PDF image rendering can mirror due to inherited CTM
-    let qr_image = image::imageops::flip_horizontal(&qr_image);
     let (qr_w, qr_h) = qr_image.dimensions();
     let raw_gray = qr_image.into_raw();
     let compressed = zlib_compress(&raw_gray)?;

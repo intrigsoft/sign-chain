@@ -275,7 +275,9 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 24, marginBottom: 24 }}>SignChain</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <img src="/logo.png" alt="SignChain" style={{ height: 32 }} />
+      </div>
 
       {/* Drop zones */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>

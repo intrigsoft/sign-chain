@@ -2,7 +2,7 @@ export default function HomePage() {
   return (
     <div style={container}>
       <div style={card}>
-        <h1 style={{ fontSize: 28, marginBottom: 8 }}>SignChain</h1>
+        <img src="/logo.png" alt="SignChain" style={{ height: 48, marginBottom: 16 }} />
         <p style={{ color: '#666', fontSize: 16, marginBottom: 24 }}>
           Blockchain-anchored document signing
         </p>
