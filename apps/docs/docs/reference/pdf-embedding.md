@@ -10,18 +10,7 @@ SignChain uses **incremental updates** to embed signatures into PDFs without mod
 
 PDF supports appending new data to the end of a file without rewriting existing content. Each append creates a new **revision**:
 
-```
-┌──────────────────────────┐
-│  Original PDF content    │  Revision 0
-│  %%EOF                   │
-├──────────────────────────┤
-│  Signature 1 (appended)  │  Revision 1
-│  %%EOF                   │
-├──────────────────────────┤
-│  Signature 2 (appended)  │  Revision 2
-│  %%EOF                   │
-└──────────────────────────┘
-```
+![PDF incremental revisions](/img/diagrams/pdf-revisions.svg)
 
 SignChain uses `lopdf::IncrementalDocument` to append without touching prior data. This means:
 
@@ -33,15 +22,7 @@ SignChain uses `lopdf::IncrementalDocument` to append without touching prior dat
 
 PDF uses a bottom-left origin coordinate system:
 
-```
-┌─────────────────────────┐
-│                    (w,h) │
-│                          │
-│          Page            │
-│                          │
-│(0,0)                     │
-└─────────────────────────┘
-```
+PDF uses a **bottom-left origin**: `(0, 0)` is the bottom-left corner, `(w, h)` is the top-right.
 
 All coordinates (signature placement, QR position, text fields) are in **PDF points** (1 point = 1/72 inch).
 
@@ -155,29 +136,7 @@ Resource names are unique per placement (`SigImg0`, `SigImg1`, `QRImg0`, etc.).
 
 Placed exactly where the user positions it in the React UI:
 
-```
-(x, y) ───────────────────────┐
-│                              │
-│     Signature PNG image      │  height
-│                              │
-└──────────────────────────────┘
-              width
-```
-
-### QR Code
-
-Placed immediately to the right of the signature block, bottom-aligned:
-
-```
-                    4pt gap
-Signature block ──┤         ├── QR code
-┌────────────────┐ ┌───────┐
-│                │ │       │
-│   Signature    │ │  QR   │  max(height, 34pt)
-│                │ │       │
-└────────────────┘ └───────┘
-                   Signed with SignChain
-```
+![Element positioning](/img/diagrams/element-positioning.svg)
 
 - Gap: 4 PDF points between signature and QR
 - QR size: `max(signature_height, 34pt)` (enforced minimum)

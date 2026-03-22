@@ -20,43 +20,7 @@ sign-chain/
 
 ## Data Flow
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     SIGNER'S MACHINE                         │
-│                                                              │
-│  ┌──────────────────────────────────────────────┐            │
-│  │            Desktop App (Tauri 2)             │            │
-│  │                                              │            │
-│  │  React UI ◄──────► Rust Backend              │            │
-│  │  (placement,       (PDF ops, hashing,        │            │
-│  │   preview)          encryption, QR gen)       │            │
-│  └──────────────────────┬───────────────────────┘            │
-│                         │                                     │
-│                         │ composite hash +                    │
-│                         │ encrypted payload                   │
-│                         │ (PDF bytes stay here)               │
-└─────────────────────────┼────────────────────────────────────┘
-                          │
-                          ▼
-                 ┌────────────────┐
-                 │   API Server   │
-                 │   (NestJS)     │
-                 │                │
-                 │ - Relay tx     │
-                 │ - Store enc.   │
-                 │   payload      │
-                 │ - Verify       │
-                 └───────┬────────┘
-                         │
-              ┌──────────┼──────────┐
-              │          │          │
-              ▼          ▼          ▼
-     ┌─────────────┐ ┌────────┐ ┌─────────────┐
-     │ Blockchain  │ │Database│ │ Verification │
-     │ (smart      │ │(Prisma)│ │ Web App      │
-     │  contract)  │ │        │ │ (React)      │
-     └─────────────┘ └────────┘ └─────────────┘
-```
+![Architecture data flow](/img/diagrams/architecture-flow.svg)
 
 ## Communication Protocols
 

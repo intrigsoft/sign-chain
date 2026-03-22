@@ -26,21 +26,7 @@ The React Router matches `/v/:txHashB64` and extracts both the path parameter an
 
 ### Verification Sequence
 
-```
-1. Parse URL
-   ├── Decode txHashB64 → hex tx hash
-   └── Extract key from fragment
-
-2. API call
-   GET /api/verify/0x<txHash>
-   └── Returns: blockchain data + encrypted payload
-
-3. Decrypt (in browser)
-   AES-128-GCM decrypt(key, encryptedPayload)
-   └── Returns: JSON with signer info
-
-4. Display results
-```
+![Verification sequence](/img/diagrams/verification-sequence.svg)
 
 ### Security: The Fragment Stays Private
 

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 220" font-family="Georgia, serif" font-size="12">
+  <!-- Revision 0 -->
+  <rect x="40" y="10" width="260" height="56" rx="0" fill="#fff" stroke="#d4cbc0" stroke-width="1"/>
+  <text x="60" y="34" fill="#2c2420">Original PDF content</text>
+  <text x="60" y="52" fill="#6b7280" font-size="10" font-family="monospace">%%EOF</text>
+  <text x="260" y="42" fill="#7c3aed" font-size="10" font-style="italic">Revision 0</text>
+
+  <!-- Revision 1 -->
+  <rect x="40" y="66" width="260" height="56" rx="0" fill="#faf8f5" stroke="#d4cbc0" stroke-width="1"/>
+  <text x="60" y="90" fill="#2c2420">Signature 1 (appended)</text>
+  <text x="60" y="108" fill="#6b7280" font-size="10" font-family="monospace">%%EOF</text>
+  <text x="260" y="98" fill="#7c3aed" font-size="10" font-style="italic">Revision 1</text>
+
+  <!-- Revision 2 -->
+  <rect x="40" y="122" width="260" height="56" rx="0" fill="#ede9fe" stroke="#7c3aed" stroke-width="1"/>
+  <text x="60" y="146" fill="#2c2420">Signature 2 (appended)</text>
+  <text x="60" y="164" fill="#6b7280" font-size="10" font-family="monospace">%%EOF</text>
+  <text x="260" y="154" fill="#7c3aed" font-size="10" font-style="italic">Revision 2</text>
+
+  <!-- Bracket -->
+  <line x1="30" y1="10" x2="30" y2="178" stroke="#d4cbc0" stroke-width="1.5"/>
+  <line x1="30" y1="10" x2="40" y2="10" stroke="#d4cbc0" stroke-width="1.5"/>
+  <line x1="30" y1="178" x2="40" y2="178" stroke="#d4cbc0" stroke-width="1.5"/>
+
+  <text x="40" y="204" fill="#6b7280" font-size="10" font-style="italic">Each revision appends — original data is never modified</text>
+</svg>

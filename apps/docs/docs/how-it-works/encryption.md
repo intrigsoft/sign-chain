@@ -12,82 +12,49 @@ The blockchain is public. Storing signer names, emails, or document hashes direc
 
 1. Encrypting the signer payload before sending it to the server
 2. Storing only a cryptographic hash on-chain
-3. Embedding the decryption key in the QR code's URL fragment (never sent to any server)
+3. Embedding the decryption key in the QR code (never sent to any server)
 
-## Encryption Scheme
+## How It Works
 
-**Algorithm:** AES-128-GCM (Galois/Counter Mode)
+![Encryption process](/img/diagrams/encryption-process.svg)
 
-| Parameter | Value |
-|---|---|
-| Key size | 128 bits (16 bytes) |
-| Nonce size | 96 bits (12 bytes) |
-| Tag size | 128 bits (16 bytes) |
-| Key derivation | Random (CSPRNG) |
-
-### Encryption Process
-
-```
-plaintext (JSON payload)
-    │
-    ├── Generate random 16-byte key
-    ├── Generate random 12-byte nonce
-    │
-    ▼
-AES-128-GCM encrypt
-    │
-    ▼
-ciphertext = nonce(12) ║ encrypted_data ║ tag(16)
-```
+A unique encryption key is generated for each signature. The signer's identity, document hash, timestamp, and a random salt are encrypted with this key. The result is split across three locations:
 
 ### Where Each Piece Lives
 
 | Data | Location | Who can access |
 |---|---|---|
 | **Encryption key** | QR code URL fragment | Anyone who scans the QR |
-| **Encrypted payload** | API database | API server (but cannot decrypt without key) |
-| **Composite hash** | Blockchain | Anyone (public) |
+| **Encrypted payload** | API server database | API server (but cannot decrypt) |
+| **Composite hash** | Blockchain | Anyone (public, but opaque) |
 | **Document hash** | Inside encrypted payload | Anyone who decrypts |
+
+This separation means no single party has access to everything.
 
 ## Key Properties
 
 ### Forward Secrecy
-Each signature uses a fresh random key. Compromising one key reveals only one signer's data.
+Every signature uses a fresh random key. Compromising one key reveals only that one signer's data. Past and future signatures are unaffected.
 
 ### Server-Side Blindness
-The API stores encrypted payloads but never possesses the decryption key. The key exists only in the QR code's URL fragment, which:
-- Is never sent in HTTP requests (fragments are client-only)
-- Lives only on the printed/displayed PDF
-- Is decoded by the verification web app in the browser
+The API stores encrypted payloads but never possesses the decryption key. The key exists only in the QR code's URL fragment, which by definition is never transmitted in HTTP requests. The server is cryptographically blind to the data it stores.
 
 ### No Key Escrow
-There is no master key or recovery mechanism. If the QR code is destroyed, the signer data cannot be recovered. The blockchain proof (hash match) remains valid forever, but the human-readable signer details are lost.
+There is no master key or recovery mechanism. If the QR code is destroyed, the signer details cannot be recovered. The blockchain proof (hash match) remains valid forever, but the human-readable information is lost.
 
-## Why AES-128 (Not AES-256)?
+This is a deliberate design choice: key escrow would introduce a trusted party that could access all signer data, defeating the purpose of client-side encryption.
+
+## Why AES-128?
 
 AES-128 was chosen over AES-256 to reduce the QR code data size:
 
-| Key size | Base64url length | QR URL total |
+| Key size | Encoded length | Savings |
 |---|---|---|
-| 256-bit | 43 characters | ~111 bytes |
-| 128-bit | 22 characters | ~89 bytes |
+| 256-bit | 43 characters | -- |
+| 128-bit | 22 characters | 21 characters smaller |
 
-The 22-byte savings allows a smaller QR version (fewer modules), which produces a more compact and scannable code. AES-128 remains secure -- it has never been broken and is approved for classified data by NIST.
+The 21-character savings allows a physically smaller QR code that is easier to scan on printed documents. AES-128 has never been broken and is approved for classified data by NIST.
 
-## Decryption (Verification)
+## Decryption
 
-Decryption happens entirely in the browser using the Web Crypto API:
-
-```javascript
-// Key from URL fragment
-const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
-
-// Ciphertext from API response
-const nonce = ciphertext.slice(0, 12);
-const encrypted = ciphertext.slice(12);
-
-// Decrypt
-const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, encrypted);
-```
-
-The decrypted JSON payload contains the signer's identity, document hash, timestamp, and salt.
+Decryption happens entirely in the verifier's browser. The browser extracts the key from the URL fragment, fetches the encrypted payload from the API, and decrypts it locally. At no point does the decryption key leave the browser or get sent to any server.

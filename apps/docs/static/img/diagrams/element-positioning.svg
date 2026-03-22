@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 160" font-family="Georgia, serif" font-size="11">
+  <!-- Signature block -->
+  <rect x="20" y="20" width="200" height="90" rx="4" fill="#fff" stroke="#d4cbc0" stroke-width="1"/>
+  <text x="70" y="70" fill="#2c2420" font-size="13">Signature PNG</text>
+  <text x="85" y="88" fill="#6b7280" font-size="10">width x height</text>
+
+  <!-- Gap annotation -->
+  <line x1="220" y1="45" x2="240" y2="45" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="224" y="38" fill="#7c3aed" font-size="9">4pt</text>
+
+  <!-- QR block -->
+  <rect x="240" y="20" width="90" height="90" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="1"/>
+  <text x="263" y="60" fill="#2c2420" font-weight="600">QR</text>
+  <text x="254" y="78" fill="#6b7280" font-size="9">min 34pt</text>
+
+  <!-- Branding text -->
+  <text x="244" y="124" fill="#9ca3af" font-size="9">Signed with SignChain</text>
+
+  <!-- Dimension labels -->
+  <text x="20" y="14" fill="#7c3aed" font-size="9">(x, y)</text>
+
+  <!-- Legend -->
+  <line x1="370" y1="36" x2="370" y2="110" stroke="#d4cbc0" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="380" y="50" fill="#6b7280" font-size="10">QR is bottom-aligned</text>
+  <text x="380" y="66" fill="#6b7280" font-size="10">with signature block</text>
+  <text x="380" y="96" fill="#6b7280" font-size="10">Branding text below,</text>
+  <text x="380" y="110" fill="#6b7280" font-size="10">right-aligned with QR</text>
+</svg>

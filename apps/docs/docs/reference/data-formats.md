@@ -69,11 +69,7 @@ The 32-byte random salt ensures that:
 
 The encrypted payload uses AES-128-GCM with a prepended nonce:
 
-```
-┌────────────┬──────────────────────────┬────────────────┐
-│ Nonce (12) │ Encrypted data (variable) │ Auth tag (16)  │
-└────────────┴──────────────────────────┴────────────────┘
-```
+![Ciphertext format](/img/diagrams/ciphertext-format.svg)
 
 | Component | Size | Description |
 |---|---|---|

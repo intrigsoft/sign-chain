@@ -49,17 +49,7 @@ The event serves as the permanent record. Event fields:
 
 When a document is signed multiple times, each signature references the previous one:
 
-```
-Signature 1:  compositeHash=H1, previousTxHash=0x000...000
-    │
-    └── tx hash: 0xAAA...
-              │
-Signature 2:  compositeHash=H2, previousTxHash=0xAAA...
-    │
-    └── tx hash: 0xBBB...
-              │
-Signature 3:  compositeHash=H3, previousTxHash=0xBBB...
-```
+![Signature chaining](/img/diagrams/signature-chain.svg)
 
 The verification API walks this chain backwards to present the complete signing history.
 

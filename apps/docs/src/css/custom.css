@@ -1,18 +1,180 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * SignChain docs — document signing aesthetic.
+ * Paper texture, serif headings, subtle aged feel.
  */
 
-/* Purple palette */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap');
+
 :root {
-  --ifm-color-primary: #7c3aed;
-  --ifm-color-primary-dark: #6d28d9;
-  --ifm-color-primary-darker: #6525c7;
-  --ifm-color-primary-darkest: #5b21b6;
-  --ifm-color-primary-light: #8b5cf6;
-  --ifm-color-primary-lighter: #a78bfa;
-  --ifm-color-primary-lightest: #c4b5fd;
+  /* Purple ink palette */
+  --ifm-color-primary: #6d28d9;
+  --ifm-color-primary-dark: #5b21b6;
+  --ifm-color-primary-darker: #4c1d95;
+  --ifm-color-primary-darkest: #3b0764;
+  --ifm-color-primary-light: #7c3aed;
+  --ifm-color-primary-lighter: #8b5cf6;
+  --ifm-color-primary-lightest: #a78bfa;
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(124, 58, 237, 0.1);
+  --docusaurus-highlighted-code-line-bg: rgba(109, 40, 217, 0.08);
+
+  /* Paper tones */
+  --ifm-background-color: #faf8f5;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #2c2420;
+  --ifm-heading-color: #1a1118;
+
+  /* Serif headings */
+  --ifm-heading-font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --ifm-font-family-base: 'Source Serif 4', Georgia, serif;
+
+  /* Softer borders */
+  --ifm-hr-border-color: #e0d8cf;
+  --ifm-toc-border-color: #e0d8cf;
+}
+
+/* Warm parchment background */
+body {
+  background: #faf8f5;
+}
+
+/* Navbar — clean, papery */
+.navbar {
+  background: #fffefa;
+  border-bottom: 1px solid #e8e0d6;
+  box-shadow: none;
+}
+
+.navbar__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  color: #2c2420;
+}
+
+/* Sidebar — subtle left border like a document margin */
+.theme-doc-sidebar-container {
+  border-right: 1px solid #e0d8cf !important;
+}
+
+.menu__link {
+  font-family: 'Source Serif 4', Georgia, serif;
+  color: #4a3f38;
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  border-left: 3px solid var(--ifm-color-primary);
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) - 3px);
+  background: rgba(109, 40, 217, 0.05);
+}
+
+/* Content area — paper card */
+.theme-doc-markdown {
+  max-width: 780px;
+}
+
+article {
+  background: #fffefa;
+  border: 1px solid #e8e0d6;
+  border-radius: 4px;
+  padding: 40px 48px;
+  margin: 16px 0;
+  box-shadow: 0 1px 4px rgba(44, 36, 32, 0.06);
+}
+
+/* Headings — bold serif with subtle underline */
+.theme-doc-markdown h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  border-bottom: 2px solid #e0d8cf;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+}
+
+.theme-doc-markdown h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  border-bottom: 1px solid #ece6de;
+  padding-bottom: 8px;
+}
+
+.theme-doc-markdown h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #4a3f38;
+}
+
+/* Links — purple ink */
+a {
+  color: var(--ifm-color-primary);
+  text-decoration-color: rgba(109, 40, 217, 0.3);
+}
+
+a:hover {
+  text-decoration-color: var(--ifm-color-primary);
+}
+
+/* Code blocks — parchment feel */
+.prism-code {
+  background: #f5f0ea !important;
+  border: 1px solid #e0d8cf;
+}
+
+code {
+  background: rgba(109, 40, 217, 0.06);
+  border: 1px solid rgba(109, 40, 217, 0.12);
+  color: #5b21b6;
+}
+
+/* Tables — clean document style */
+table {
+  border-collapse: collapse;
+}
+
+table th {
+  background: #f5f0ea;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #2c2420;
+  border-bottom: 2px solid #d4cbc0;
+}
+
+table td {
+  border-bottom: 1px solid #e8e0d6;
+}
+
+/* Blockquotes — margin note style */
+blockquote {
+  border-left: 3px solid var(--ifm-color-primary);
+  background: rgba(109, 40, 217, 0.03);
+  color: #4a3f38;
+  font-style: italic;
+}
+
+/* Footer */
+.footer--dark {
+  background: #2c2420;
+}
+
+/* Admonitions / alerts */
+.alert {
+  border-radius: 4px;
+  border-left-width: 4px;
+}
+
+/* TOC right sidebar */
+.table-of-contents__link {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.85rem;
+}
+
+/* Pagination — bottom nav */
+.pagination-nav__link {
+  border-color: #e0d8cf;
+  background: #fffefa;
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--ifm-color-primary);
 }
