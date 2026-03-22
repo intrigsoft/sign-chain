@@ -35,17 +35,28 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // On Linux/Windows, file associations pass file path as CLI arg
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() > 1 {
+                let path = &args[1];
+                if path.ends_with(".pdf") || path.ends_with(".PDF") {
+                    let _ = app.handle().emit("file-open", path.to_string());
+                }
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            if let tauri::RunEvent::Opened { urls } = event {
-                // File associations pass file paths as file:// URLs
+        .run(|_app, _event| {
+            // macOS file open events handled here when targeting macOS
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
                 for url in urls {
                     if let Ok(path) = url.to_file_path() {
                         if let Some(path_str) = path.to_str() {
-                            let _ = app.emit("file-open", path_str.to_string());
+                            let _ = _app.emit("file-open", path_str.to_string());
                         }
                     }
                 }

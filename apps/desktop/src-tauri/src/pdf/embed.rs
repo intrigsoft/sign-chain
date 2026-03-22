@@ -499,9 +499,11 @@ pub fn embed_qr_with_tx(
 ) -> Result<()> {
 
     // Generate QR code image once as raw grayscale pixels
-    // Version 5 (37×37 modules), EC Level L (7% error recovery), 106 byte capacity
-    let code = QrCode::with_version(tx_hash.as_bytes(), Version::Normal(5), EcLevel::L)?;
+    // Version 6 (41×41 modules), EC Level M (15% error recovery), 106 byte capacity
+    let code = QrCode::with_version(tx_hash.as_bytes(), Version::Normal(6), EcLevel::M)?;
     let qr_image = code.render::<Luma<u8>>().min_dimensions(570, 570).build();
+    // Flip horizontally — PDF image rendering can mirror due to inherited CTM
+    let qr_image = image::imageops::flip_horizontal(&qr_image);
     let (qr_w, qr_h) = qr_image.dimensions();
     let raw_gray = qr_image.into_raw();
     let compressed = zlib_compress(&raw_gray)?;
@@ -521,6 +523,13 @@ pub fn embed_qr_with_tx(
     );
     let qr_obj_id = doc.add_object(qr_stream);
 
+    // Pre-create a Helvetica font object for branding text
+    let brand_font_id = doc.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type1",
+        "BaseFont" => "Helvetica",
+    });
+
     for (idx, placement) in placements.iter().enumerate() {
         let target_page_id = page_ids
             .get(&placement.page_number)
@@ -528,13 +537,25 @@ pub fn embed_qr_with_tx(
             .ok_or_else(|| anyhow::anyhow!("Page {} not found", placement.page_number))?;
 
         // Place QR as a square matching the signature height, minimum 34pt (~12mm)
+        // Aligned to bottom of signature block
         let qr_size = placement.height.max(34.0);
         let qr_x = placement.x + placement.width + 4.0;
-        let qr_y = placement.y;
+        let qr_y = placement.y; // bottom-aligned (PDF y=0 is bottom)
 
         let xobj_name = format!("QRImg{}", idx);
 
+        // "Signed with SignChain" text below QR, right-aligned with QR pattern
+        // QR quiet zone = 4 modules; V6 = 41+8 = 49 total modules in image
+        let quiet_zone_frac = 4.0 / 49.0;
+        let quiet_zone = qr_size * quiet_zone_frac;
+        let inner_qr = qr_size - 2.0 * quiet_zone;
+        let brand_font_size = (inner_qr / 10.0).max(3.0);
+        let text_width = 20.0 * 0.5 * brand_font_size; // approx width of "Signed with SignChain"
+        let brand_x = qr_x + quiet_zone + inner_qr - text_width; // right-align
+        let brand_y = qr_y - brand_font_size - 2.0 + quiet_zone;
+
         let ops = vec![
+            // Draw QR
             Operation::new("q", vec![]),
             Operation::new(
                 "cm",
@@ -548,6 +569,27 @@ pub fn embed_qr_with_tx(
                 ],
             ),
             Operation::new("Do", vec![xobj_name.as_str().into()]),
+            Operation::new("Q", vec![]),
+            // Draw vertical branding text
+            Operation::new("q", vec![]),
+            Operation::new("BT", vec![]),
+            Operation::new("Tf", vec!["Helv".into(), Object::Real(brand_font_size)]),
+            Operation::new("rg", vec![0.6.into(), 0.6.into(), 0.6.into()]), // light gray
+            // Horizontal text below QR (Tm sets text matrix: [sx 0 0 sy tx ty])
+            // sx/sy = 1 since font size is already set by Tf
+            Operation::new(
+                "Tm",
+                vec![
+                    1.into(),
+                    0.into(),
+                    0.into(),
+                    1.into(),
+                    Object::Real(brand_x),
+                    Object::Real(brand_y),
+                ],
+            ),
+            Operation::new("Tj", vec![Object::string_literal("Signed with SignChain")]),
+            Operation::new("ET", vec![]),
             Operation::new("Q", vec![]),
         ];
 
@@ -574,7 +616,7 @@ pub fn embed_qr_with_tx(
                 }
             }
 
-            // Add QR XObject to resources with unique name
+            // Add QR XObject and Helvetica font to resources
             let has_resources = page.get(b"Resources").is_ok();
             if has_resources {
                 if let Ok(Object::Dictionary(ref mut resources)) = page.get_mut(b"Resources") {
@@ -592,6 +634,15 @@ pub fn embed_qr_with_tx(
                                 xobj_name => Object::Reference(qr_obj_id),
                             },
                         );
+                    }
+                    // Ensure Helvetica font exists for branding text
+                    if resources.get(b"Font").is_err() {
+                        resources.set("Font", dictionary! {});
+                    }
+                    if let Ok(Object::Dictionary(ref mut fonts)) = resources.get_mut(b"Font") {
+                        if fonts.get(b"Helv").is_err() {
+                            fonts.set("Helv", Object::Reference(brand_font_id));
+                        }
                     }
                 }
             } else {

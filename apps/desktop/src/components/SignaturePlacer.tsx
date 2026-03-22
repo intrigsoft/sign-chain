@@ -36,7 +36,7 @@ const MIN_FIELD_WIDTH = 60;
 const QR_MIN_PT = 34;
 
 // ---------------------------------------------------------------------------
-// QR placeholder (unchanged)
+// QR placeholder — bottom-aligned with vertical branding text
 // ---------------------------------------------------------------------------
 function QrPlaceholder({
   sigHeight,
@@ -47,31 +47,55 @@ function QrPlaceholder({
   scale: number;
   borderColor: string;
 }) {
-  // Match Rust: qr_size = placement.height.max(34.0), placed 4pt right
+  // Match Rust: qr_size = placement.height.max(34.0), placed 4pt right, bottom-aligned
   const qrSize = Math.max(sigHeight, QR_MIN_PT * scale);
+  // Match Rust: account for QR quiet zone (4/49 of image size)
+  const quietZone = qrSize * (4 / 49);
+  const brandFontSize = Math.max(3, (qrSize - 2 * quietZone) / 10);
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: '100%',
-        top: 0,
-        width: qrSize,
-        height: qrSize,
-        marginLeft: 4 * scale,
-        border: `2px dashed ${borderColor}`,
-        borderRadius: 4,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        pointerEvents: 'none',
-        color: borderColor,
-        fontSize: 11,
-        fontWeight: 600,
-        opacity: 0.7,
-      }}
-    >
-      QR
-    </div>
+    <>
+      {/* QR box */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '100%',
+          bottom: 0,
+          width: qrSize,
+          height: qrSize,
+          marginLeft: 4 * scale,
+          border: `2px dashed ${borderColor}`,
+          borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          color: borderColor,
+          fontSize: 11,
+          fontWeight: 600,
+          opacity: 0.7,
+        }}
+      >
+        QR
+      </div>
+      {/* Branding text below QR */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `calc(100% + ${4 * scale + quietZone}px)`,
+          bottom: -(brandFontSize + 4 - quietZone),
+          width: qrSize - 2 * quietZone,
+          textAlign: 'right',
+          fontSize: brandFontSize,
+          fontFamily: 'Helvetica, Arial, sans-serif',
+          color: '#999',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          lineHeight: 1,
+        }}
+      >
+        Signed with SignChain
+      </div>
+    </>
   );
 }
 

@@ -96,9 +96,12 @@ pub fn encrypt_payload(plaintext: &[u8]) -> Result<([u8; 16], Vec<u8>), String> 
     Ok((key_arr, result))
 }
 
+/// Base URL for the verification web app.
+/// TODO: switch to https://signchain.app for production
+const QR_BASE_URL: &str = "https://192.168.8.100:4300";
+
 /// Build the QR URL with base64url-encoded tx hash and encryption key.
-/// Format: https://signchain.app/v/<base64url(txHashBytes)>#<base64url(key)>
-/// Total: ~89 bytes (fits in QR Version 9 / EC Q = 134 bytes).
+/// Format: <base>/v/<base64url(txHashBytes)>#<base64url(key)>
 pub fn build_qr_url(tx_hash_hex: &str, key: &[u8; 16]) -> Result<String, String> {
     // Strip 0x prefix and decode hex to raw bytes
     let hex_str = tx_hash_hex.strip_prefix("0x").unwrap_or(tx_hash_hex);
@@ -108,5 +111,5 @@ pub fn build_qr_url(tx_hash_hex: &str, key: &[u8; 16]) -> Result<String, String>
     let tx_b64 = Base64UrlUnpadded::encode_string(&tx_bytes);
     let key_b64 = Base64UrlUnpadded::encode_string(key);
 
-    Ok(format!("https://signchain.app/v/{}#{}", tx_b64, key_b64))
+    Ok(format!("{}/v/{}#{}", QR_BASE_URL, tx_b64, key_b64))
 }
