@@ -42,7 +42,7 @@ function RevisionPreview({
 
   if (error) {
     return (
-      <div style={{ marginTop: 12, color: '#ef4444', fontSize: 13 }}>
+      <div className="mt-3 text-red-500 text-[13px]">
         Failed to load revision: {error}
       </div>
     );
@@ -50,57 +50,29 @@ function RevisionPreview({
 
   if (!pdfDoc) {
     return (
-      <div style={{ marginTop: 12, color: '#666', fontSize: 13 }}>
+      <div className="mt-3 text-gray-500 text-[13px]">
         Loading preview...
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        background: '#f9fafb',
-        padding: 12,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+    <div className="mt-4 border border-gray-200 rounded-lg bg-gray-50 p-3">
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-[13px] font-semibold text-gray-700">
           Revision Preview ({pdfDoc.numPages} page
           {pdfDoc.numPages !== 1 ? 's' : ''})
         </span>
         <button
           onClick={onClose}
-          style={{
-            padding: '4px 12px',
-            fontSize: 12,
-            background: '#e5e7eb',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="px-3 py-1 text-xs bg-gray-200 border-none rounded-md cursor-pointer hover:bg-gray-300"
         >
           Close preview
         </button>
       </div>
       <div
         ref={containerRef}
-        style={{
-          maxHeight: 500,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
+        className="max-h-[500px] overflow-y-auto flex flex-col gap-2"
       >
         {Array.from({ length: pdfDoc.numPages }, (_, i) => (
           <RevisionPage
@@ -165,12 +137,10 @@ function RevisionPage({
   return (
     <canvas
       ref={canvasRef}
+      className="block bg-white rounded"
       style={{
-        display: 'block',
         width: dims?.w ?? containerWidth,
         height: dims?.h ?? 200,
-        background: '#fff',
-        borderRadius: 4,
       }}
     />
   );
@@ -246,87 +216,50 @@ export default function VerifyPage() {
   );
 
   return (
-    <div style={{ padding: 32, maxWidth: 640, margin: '0 auto' }}>
+    <div className="p-8 max-w-[640px] mx-auto">
       <button
         onClick={() => navigate('/dashboard')}
-        style={{
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          marginBottom: 16,
-          color: '#2563eb',
-          fontSize: 14,
-        }}
+        className="bg-transparent border-none cursor-pointer mb-4 text-brand-700 text-sm"
       >
         &larr; Dashboard
       </button>
 
-      <h1 style={{ fontSize: 24, marginBottom: 8 }}>Verify Document</h1>
-      <p style={{ color: '#666', marginBottom: 24, fontSize: 14 }}>
+      <h1 className="text-2xl mb-2">Verify Document</h1>
+      <p className="text-gray-500 mb-6 text-sm">
         Select a signed PDF to verify its signing chain integrity.
       </p>
 
       <button
         onClick={handlePickFile}
         disabled={loading}
-        style={{
-          padding: '12px 24px',
-          fontSize: 14,
-          background: '#2563eb',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 8,
-          cursor: loading ? 'default' : 'pointer',
-          opacity: loading ? 0.6 : 1,
-        }}
+        className={`px-6 py-3 text-sm text-white border-none rounded-lg cursor-pointer bg-brand-700 ${
+          loading ? 'opacity-60 cursor-default' : 'hover:bg-brand-800'
+        }`}
       >
         {loading ? 'Verifying...' : 'Select PDF'}
       </button>
 
       {error && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 12,
-            background: '#fef2f2',
-            borderRadius: 8,
-            color: '#ef4444',
-            fontSize: 13,
-          }}
-        >
+        <div className="mt-4 p-3 bg-red-50 rounded-lg text-red-500 text-[13px]">
           {error}
         </div>
       )}
 
       {result && !result.isSignchainDocument && (
-        <div
-          style={{
-            marginTop: 24,
-            padding: 16,
-            background: '#f3f4f6',
-            borderRadius: 8,
-            color: '#374151',
-            fontSize: 14,
-          }}
-        >
+        <div className="mt-6 p-4 bg-gray-100 rounded-lg text-gray-700 text-sm">
           This PDF does not contain SignChain metadata.
         </div>
       )}
 
       {result && result.isSignchainDocument && (
-        <div style={{ marginTop: 24 }}>
+        <div className="mt-6">
           {/* Status banner */}
           <div
-            style={{
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 20,
-              fontSize: 14,
-              fontWeight: 600,
-              background: result.chainValid ? '#f0fdf4' : '#fef2f2',
-              color: result.chainValid ? '#16a34a' : '#ef4444',
-              border: `1px solid ${result.chainValid ? '#bbf7d0' : '#fecaca'}`,
-            }}
+            className={`p-3 rounded-lg mb-5 text-sm font-semibold border ${
+              result.chainValid
+                ? 'bg-green-50 text-green-600 border-green-200'
+                : 'bg-red-50 text-red-500 border-red-200'
+            }`}
           >
             {result.chainValid
               ? 'Document integrity verified'
@@ -334,7 +267,7 @@ export default function VerifyPage() {
           </div>
 
           {fileName && (
-            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+            <p className="text-[13px] text-gray-500 mb-4">
               {fileName}
             </p>
           )}
@@ -343,83 +276,50 @@ export default function VerifyPage() {
           <button
             onClick={handleViewOriginal}
             disabled={previewLoading}
-            style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              background: '#f3f4f6',
-              border: '1px solid #d1d5db',
-              borderRadius: 6,
-              cursor: previewLoading ? 'default' : 'pointer',
-              marginBottom: 12,
-              opacity: previewLoading ? 0.6 : 1,
-            }}
+            className={`px-3.5 py-1.5 text-[13px] bg-gray-100 border border-gray-300 rounded-md mb-3 ${
+              previewLoading ? 'opacity-60 cursor-default' : 'cursor-pointer hover:bg-gray-200'
+            }`}
           >
             View original
           </button>
 
           {/* Signer list */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex flex-col gap-2">
             {result.signers.map((s, i) => (
               <div
                 key={i}
-                style={{
-                  padding: 16,
-                  border: '1px solid #e5e7eb',
-                  borderRadius: 8,
-                  background: '#fff',
-                }}
+                className="p-4 border border-gray-200 rounded-lg bg-white"
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 4,
-                  }}
-                >
-                  <div
-                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-                  >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
                     <span
-                      style={{
-                        fontSize: 16,
-                        color: s.status === 'valid' ? '#16a34a' : '#ef4444',
-                      }}
+                      className={`text-base ${
+                        s.status === 'valid' ? 'text-green-600' : 'text-red-500'
+                      }`}
                     >
                       {s.status === 'valid' ? '\u2713' : '\u2717'}
                     </span>
-                    <span style={{ fontWeight: 600 }}>
+                    <span className="font-semibold">
                       {s.signer}{' '}
-                      <span style={{ fontWeight: 400, color: '#666' }}>
+                      <span className="font-normal text-gray-500">
                         ({s.email})
                       </span>
                     </span>
                   </div>
-                  <div
-                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-                  >
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleViewRevision(i)}
                       disabled={previewLoading}
-                      style={{
-                        padding: '3px 10px',
-                        fontSize: 12,
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: 4,
-                        color: '#2563eb',
-                        cursor: previewLoading ? 'default' : 'pointer',
-                        opacity: previewLoading ? 0.6 : 1,
-                      }}
+                      className={`px-2.5 py-0.5 text-xs bg-brand-50 border border-brand-200 rounded text-brand-700 ${
+                        previewLoading ? 'opacity-60 cursor-default' : 'cursor-pointer hover:bg-brand-100'
+                      }`}
                     >
                       View
                     </button>
                     <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: s.status === 'valid' ? '#16a34a' : '#ef4444',
-                      }}
+                      className={`text-xs font-semibold ${
+                        s.status === 'valid' ? 'text-green-600' : 'text-red-500'
+                      }`}
                     >
                       {s.status === 'valid'
                         ? 'Valid'
@@ -429,46 +329,24 @@ export default function VerifyPage() {
                     </span>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>
+                <div className="text-xs text-gray-400 ml-6">
                   <div>Signed {new Date(s.timestamp).toLocaleString()}</div>
-                  <div style={{ fontFamily: 'monospace', marginTop: 2 }}>
+                  <div className="font-mono mt-0.5">
                     Hash: {s.hash.slice(0, 10)}...{s.hash.slice(-7)}
                   </div>
                   {s.blockchainVerified !== null && s.blockchainVerified !== undefined && (
                     <div
-                      style={{
-                        marginTop: 4,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: s.blockchainVerified ? '#f0fdf4' : '#fef2f2',
-                        color: s.blockchainVerified ? '#16a34a' : '#ef4444',
-                        border: `1px solid ${s.blockchainVerified ? '#bbf7d0' : '#fecaca'}`,
-                      }}
+                      className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                        s.blockchainVerified
+                          ? 'bg-green-50 text-green-600 border-green-200'
+                          : 'bg-red-50 text-red-500 border-red-200'
+                      }`}
                     >
                       {s.blockchainVerified ? '\u26D3 Blockchain verified' : '\u26A0 Blockchain mismatch'}
                     </div>
                   )}
                   {s.blockchainVerified === null && (
-                    <div
-                      style={{
-                        marginTop: 4,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: '#fffbeb',
-                        color: '#d97706',
-                        border: '1px solid #fde68a',
-                      }}
-                    >
+                    <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
                       Blockchain status unavailable (offline or legacy signature)
                     </div>
                   )}

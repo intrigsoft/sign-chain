@@ -43,58 +43,40 @@ export default function IdentityPage() {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        background: '#f9fafb',
-      }}
-    >
+    <div className="flex items-center justify-center h-screen bg-gray-50">
       <form
         onSubmit={handleSubmit}
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: 40,
-          width: 380,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}
+        className="bg-white rounded-xl p-10 w-[380px] shadow-sm"
       >
-        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Sign Chain</h1>
-        <p style={{ color: '#666', fontSize: 14, marginBottom: 24 }}>
+        <img
+          src="/logo.png"
+          alt="SignChain"
+          className="mx-auto block h-8 mb-1"
+        />
+        <p className="text-gray-500 text-sm mb-6 text-center">
           Enter your details to get started
         </p>
 
         {/* Signer type toggle */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="flex gap-2 mb-4">
           {(['individual', 'company'] as const).map((type) => (
             <button
               key={type}
               type="button"
               onClick={() => setSignerType(type)}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                fontSize: 14,
-                border: `1px solid ${signerType === type ? '#2563eb' : '#d1d5db'}`,
-                borderRadius: 6,
-                background: signerType === type ? '#eff6ff' : '#fff',
-                color: signerType === type ? '#2563eb' : '#374151',
-                cursor: 'pointer',
-                fontWeight: signerType === type ? 600 : 400,
-              }}
+              className={`flex-1 py-2 px-3 text-sm rounded-md border cursor-pointer ${
+                signerType === type
+                  ? 'border-brand-700 bg-brand-50 text-brand-700 font-semibold'
+                  : 'border-gray-300 bg-white text-gray-700'
+              }`}
             >
               {type === 'individual' ? 'Individual' : 'Company'}
             </button>
           ))}
         </div>
 
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <span style={{ fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 4 }}>
-            Full Name
-          </span>
+        <label className="block mb-4">
+          <span className="text-sm font-medium block mb-1">Full Name</span>
           <input
             type="text"
             value={name}
@@ -103,24 +85,17 @@ export default function IdentityPage() {
               setErrors((prev) => ({ ...prev, name: undefined }));
             }}
             placeholder="John Doe"
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: `1px solid ${errors.name ? '#ef4444' : '#d1d5db'}`,
-              borderRadius: 6,
-              fontSize: 14,
-              boxSizing: 'border-box',
-            }}
+            className={`w-full py-2 px-3 border rounded-md text-sm box-border focus:outline-none focus:ring-2 focus:border-brand-700 focus:ring-brand-50 ${
+              errors.name ? 'border-red-500' : 'border-gray-300'
+            }`}
           />
           {errors.name && (
-            <span style={{ color: '#ef4444', fontSize: 12 }}>{errors.name}</span>
+            <span className="text-red-500 text-xs">{errors.name}</span>
           )}
         </label>
 
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <span style={{ fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 4 }}>
-            Email
-          </span>
+        <label className="block mb-4">
+          <span className="text-sm font-medium block mb-1">Email</span>
           <input
             type="email"
             value={email}
@@ -129,24 +104,19 @@ export default function IdentityPage() {
               setErrors((prev) => ({ ...prev, email: undefined }));
             }}
             placeholder="you@example.com"
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              border: `1px solid ${errors.email ? '#ef4444' : '#d1d5db'}`,
-              borderRadius: 6,
-              fontSize: 14,
-              boxSizing: 'border-box',
-            }}
+            className={`w-full py-2 px-3 border rounded-md text-sm box-border focus:outline-none focus:ring-2 focus:border-brand-700 focus:ring-brand-50 ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
           />
           {errors.email && (
-            <span style={{ color: '#ef4444', fontSize: 12 }}>{errors.email}</span>
+            <span className="text-red-500 text-xs">{errors.email}</span>
           )}
         </label>
 
         {signerType === 'company' && (
           <>
-            <label style={{ display: 'block', marginBottom: 16 }}>
-              <span style={{ fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 4 }}>
+            <label className="block mb-4">
+              <span className="text-sm font-medium block mb-1">
                 Company Name
               </span>
               <input
@@ -157,22 +127,17 @@ export default function IdentityPage() {
                   setErrors((prev) => ({ ...prev, company: undefined }));
                 }}
                 placeholder="Acme Inc."
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: `1px solid ${errors.company ? '#ef4444' : '#d1d5db'}`,
-                  borderRadius: 6,
-                  fontSize: 14,
-                  boxSizing: 'border-box',
-                }}
+                className={`w-full py-2 px-3 border rounded-md text-sm box-border focus:outline-none focus:ring-2 focus:border-brand-700 focus:ring-brand-50 ${
+                  errors.company ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
               {errors.company && (
-                <span style={{ color: '#ef4444', fontSize: 12 }}>{errors.company}</span>
+                <span className="text-red-500 text-xs">{errors.company}</span>
               )}
             </label>
 
-            <label style={{ display: 'block', marginBottom: 16 }}>
-              <span style={{ fontSize: 14, fontWeight: 500, display: 'block', marginBottom: 4 }}>
+            <label className="block mb-4">
+              <span className="text-sm font-medium block mb-1">
                 Position (optional)
               </span>
               <input
@@ -180,14 +145,7 @@ export default function IdentityPage() {
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
                 placeholder="CEO"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  boxSizing: 'border-box',
-                }}
+                className="w-full py-2 px-3 border border-gray-300 rounded-md text-sm box-border focus:outline-none focus:ring-2 focus:border-brand-700 focus:ring-brand-50"
               />
             </label>
           </>
@@ -195,16 +153,7 @@ export default function IdentityPage() {
 
         <button
           type="submit"
-          style={{
-            width: '100%',
-            padding: '12px 24px',
-            fontSize: 14,
-            background: '#2563eb',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            cursor: 'pointer',
-          }}
+          className="w-full py-3 px-6 text-sm bg-brand-700 hover:bg-brand-800 text-white border-none rounded-lg cursor-pointer"
         >
           Continue
         </button>

@@ -16,6 +16,7 @@ export interface PdfScrollViewerResult {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
+  setActualSize: () => void;
 }
 
 const MIN_SCALE = 0.5;

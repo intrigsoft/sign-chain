@@ -42,72 +42,38 @@ export default function SignPage() {
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div className="flex h-screen">
       {/* Left panel */}
-      <div
-        style={{
-          width: 320,
-          padding: 24,
-          borderRight: '1px solid #e5e7eb',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'auto',
-        }}
-      >
+      <div className="w-80 p-6 border-r border-gray-200 flex flex-col overflow-auto">
         <button
           onClick={() => navigate('/upload')}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            marginBottom: 16,
-            textAlign: 'left',
-            color: '#2563eb',
-          }}
+          className="bg-transparent border-none cursor-pointer mb-4 text-left text-brand-700"
         >
           &larr; Back
         </button>
 
-        <h2 style={{ fontSize: 20, marginBottom: 4 }}>Sign Document</h2>
-        <p style={{ color: '#666', marginBottom: 16, fontSize: 14 }}>{fileName}</p>
+        <h2 className="text-xl mb-1">Sign Document</h2>
+        <p className="text-gray-500 mb-4 text-sm">{fileName}</p>
 
         {/* Mode toggle */}
-        <div
-          style={{
-            display: 'flex',
-            borderRadius: 8,
-            overflow: 'hidden',
-            border: '1px solid #d1d5db',
-            marginBottom: 20,
-          }}
-        >
+        <div className="flex rounded-lg overflow-hidden border border-gray-300 mb-5">
           <button
             onClick={() => setPlacementMode('signature')}
-            style={{
-              flex: 1,
-              padding: '8px 0',
-              fontSize: 13,
-              fontWeight: placementMode === 'signature' ? 600 : 400,
-              background: placementMode === 'signature' ? '#2563eb' : '#fff',
-              color: placementMode === 'signature' ? '#fff' : '#374151',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`flex-1 py-2 text-[13px] border-none cursor-pointer ${
+              placementMode === 'signature'
+                ? 'font-semibold bg-brand-700 text-white'
+                : 'font-normal bg-white text-gray-700'
+            }`}
           >
             Signature
           </button>
           <button
             onClick={() => setPlacementMode('textField')}
-            style={{
-              flex: 1,
-              padding: '8px 0',
-              fontSize: 13,
-              fontWeight: placementMode === 'textField' ? 600 : 400,
-              background: placementMode === 'textField' ? '#7c3aed' : '#fff',
-              color: placementMode === 'textField' ? '#fff' : '#374151',
-              border: 'none',
-              cursor: 'pointer',
-            }}
+            className={`flex-1 py-2 text-[13px] border-none cursor-pointer ${
+              placementMode === 'textField'
+                ? 'font-semibold bg-brand-600 text-white'
+                : 'font-normal bg-white text-gray-700'
+            }`}
           >
             Text Field
           </button>
@@ -125,8 +91,8 @@ export default function SignPage() {
 
             {/* Draggable signature thumbnail */}
             {signatureBase64 && (
-              <div style={{ marginTop: 20 }}>
-                <p style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
+              <div className="mt-5">
+                <p className="text-xs text-gray-500 mb-1.5">
                   Drag to place on PDF
                 </p>
                 <div
@@ -135,22 +101,13 @@ export default function SignPage() {
                     e.dataTransfer.setData('text/plain', 'signature');
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
-                  style={{
-                    border: '2px dashed #2563eb',
-                    borderRadius: 8,
-                    padding: 8,
-                    cursor: 'grab',
-                    background: '#f0f4ff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  className="border-2 border-dashed border-brand-700 rounded-lg p-2 cursor-grab bg-brand-50 flex items-center justify-center"
                 >
                   <img
                     src={`data:image/png;base64,${signatureBase64}`}
                     alt="Drag signature"
                     draggable={false}
-                    style={{ maxWidth: '100%', maxHeight: 60, objectFit: 'contain' }}
+                    className="max-w-full max-h-[60px] object-contain"
                   />
                 </div>
               </div>
@@ -162,26 +119,20 @@ export default function SignPage() {
         {placementMode === 'textField' && (
           <div>
             {/* Field type selector */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>
+            <div className="mb-3">
+              <label className="text-xs text-gray-700 block mb-1">
                 Field type
               </label>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="flex gap-2">
                 {(['text', 'date'] as TextFieldType[]).map((type) => (
                   <button
                     key={type}
                     onClick={() => setPendingFieldType(type)}
-                    style={{
-                      flex: 1,
-                      padding: '6px 12px',
-                      fontSize: 13,
-                      borderRadius: 6,
-                      border: `1px solid ${pendingFieldType === type ? '#7c3aed' : '#d1d5db'}`,
-                      background: pendingFieldType === type ? '#f5f3ff' : '#fff',
-                      color: pendingFieldType === type ? '#7c3aed' : '#374151',
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                    }}
+                    className={`flex-1 px-3 py-1.5 text-[13px] rounded-md border cursor-pointer capitalize ${
+                      pendingFieldType === type
+                        ? 'border-brand-600 bg-brand-50 text-brand-600'
+                        : 'border-gray-300 bg-white text-gray-700'
+                    }`}
                   >
                     {type}
                   </button>
@@ -190,21 +141,14 @@ export default function SignPage() {
             </div>
 
             {/* Font size selector */}
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>
+            <div className="mb-3">
+              <label className="text-xs text-gray-700 block mb-1">
                 Font size
               </label>
               <select
                 value={pendingFontSize}
                 onChange={(e) => setPendingFontSize(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  fontSize: 13,
-                  borderRadius: 6,
-                  border: '1px solid #d1d5db',
-                  background: '#fff',
-                }}
+                className="w-full px-2 py-1.5 text-[13px] rounded-md border border-gray-300 bg-white"
               >
                 {[10, 12, 14, 16, 18].map((size) => (
                   <option key={size} value={size}>
@@ -215,8 +159,8 @@ export default function SignPage() {
             </div>
 
             {/* Draggable text field */}
-            <div style={{ marginTop: 8 }}>
-              <p style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
+            <div className="mt-2">
+              <p className="text-xs text-gray-500 mb-1.5">
                 Drag to place on PDF
               </p>
               <div
@@ -225,19 +169,7 @@ export default function SignPage() {
                   e.dataTransfer.setData('text/plain', 'textField');
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
-                style={{
-                  border: '2px dashed #7c3aed',
-                  borderRadius: 8,
-                  padding: '10px 16px',
-                  cursor: 'grab',
-                  background: '#faf5ff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 13,
-                  color: '#7c3aed',
-                  fontWeight: 500,
-                }}
+                className="border-2 border-dashed border-brand-600 rounded-lg px-4 py-2.5 cursor-grab bg-brand-50 flex items-center justify-center text-[13px] text-brand-600 font-medium"
               >
                 {pendingFieldType === 'date' ? 'Date Field' : 'Text Field'}
               </div>
@@ -247,37 +179,20 @@ export default function SignPage() {
 
         {/* Signature placement list */}
         {signaturePlacements.length > 0 && (
-          <div style={{ marginTop: 20 }}>
-            <h4 style={{ fontSize: 14, marginBottom: 8, color: '#374151' }}>
+          <div className="mt-5">
+            <h4 className="text-sm mb-2 text-gray-700">
               Signatures ({signaturePlacements.length})
             </h4>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <ul className="list-none p-0 m-0">
               {signaturePlacements.map((p, i) => (
                 <li
                   key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 8px',
-                    fontSize: 13,
-                    background: '#f0fdf4',
-                    borderRadius: 6,
-                    marginBottom: 4,
-                    borderLeft: '3px solid #16a34a',
-                  }}
+                  className="flex items-center justify-between px-2 py-1.5 text-[13px] bg-green-50 rounded-md mb-1 border-l-[3px] border-l-green-600"
                 >
                   <span>Page {p.pageNumber}</span>
                   <button
                     onClick={() => removeSignaturePlacement(i)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      padding: '2px 6px',
-                    }}
+                    className="bg-transparent border-none text-red-500 cursor-pointer text-[13px] px-1.5 py-0.5"
                   >
                     Remove
                   </button>
@@ -289,40 +204,22 @@ export default function SignPage() {
 
         {/* Text field placement list */}
         {textFieldPlacements.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <h4 style={{ fontSize: 14, marginBottom: 8, color: '#374151' }}>
+          <div className="mt-3">
+            <h4 className="text-sm mb-2 text-gray-700">
               Text Fields ({textFieldPlacements.length})
             </h4>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <ul className="list-none p-0 m-0">
               {textFieldPlacements.map((tf) => (
                 <li
                   key={tf.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 8px',
-                    fontSize: 13,
-                    background: '#faf5ff',
-                    borderRadius: 6,
-                    marginBottom: 4,
-                    borderLeft: '3px solid #7c3aed',
-                  }}
+                  className="flex items-center justify-between px-2 py-1.5 text-[13px] bg-brand-50 rounded-md mb-1 border-l-[3px] border-l-brand-600"
                 >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]">
                     P{tf.pageNumber}: {tf.text || `(${tf.fieldType})`}
                   </span>
                   <button
                     onClick={() => removeTextField(tf.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      padding: '2px 6px',
-                      flexShrink: 0,
-                    }}
+                    className="bg-transparent border-none text-red-500 cursor-pointer text-[13px] px-1.5 py-0.5 shrink-0"
                   >
                     Remove
                   </button>
@@ -332,10 +229,10 @@ export default function SignPage() {
           </div>
         )}
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         {placementMode === 'signature' && signatureBase64 && (
-          <p style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
+          <p className="text-gray-400 text-xs mt-2">
             {signaturePlacements.length === 0
               ? 'Drag your signature onto the PDF to place it.'
               : 'Click a placement to move, resize, or delete it.'}
@@ -343,7 +240,7 @@ export default function SignPage() {
         )}
 
         {placementMode === 'textField' && (
-          <p style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
+          <p className="text-gray-400 text-xs mt-2">
             Drag a field onto the PDF. Double-click to edit its text.
           </p>
         )}
@@ -352,37 +249,24 @@ export default function SignPage() {
         <button
           onClick={() => setShowConfirm(true)}
           disabled={!canSign}
-          style={{
-            padding: '12px 24px',
-            fontSize: 14,
-            background: canSign ? '#16a34a' : '#ccc',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            cursor: canSign ? 'pointer' : 'default',
-            marginTop: 12,
-          }}
+          className={`px-6 py-3 text-sm text-white border-none rounded-lg mt-3 ${
+            canSign
+              ? 'bg-brand-700 hover:bg-brand-800 cursor-pointer'
+              : 'bg-gray-300 cursor-default'
+          }`}
         >
           Sign &amp; Anchor
         </button>
 
         {error && (
-          <div style={{ marginTop: 12, padding: 12, background: '#fef2f2', borderRadius: 8, color: '#ef4444', fontSize: 13 }}>
+          <div className="mt-3 p-3 bg-red-50 rounded-lg text-red-500 text-[13px]">
             Error: {error}
           </div>
         )}
       </div>
 
       {/* Right panel — PDF with placement overlay */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          background: '#f9fafb',
-          overflow: 'hidden',
-          padding: 0,
-        }}
-      >
+      <div className="flex-1 flex bg-gray-50 overflow-hidden p-0">
         {filePath ? (
           <SignaturePlacer
             filePath={filePath}
@@ -400,34 +284,16 @@ export default function SignPage() {
             onTextFieldRemoved={removeTextField}
           />
         ) : (
-          <p style={{ color: '#999' }}>No document loaded</p>
+          <p className="text-gray-400">No document loaded</p>
         )}
       </div>
 
       {/* Confirmation modal */}
       {showConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              padding: 32,
-              maxWidth: 400,
-              width: '100%',
-            }}
-          >
-            <h3 style={{ marginBottom: 12 }}>Confirm Signing</h3>
-            <p style={{ color: '#666', marginBottom: 24, fontSize: 14 }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl p-8 max-w-[400px] w-full">
+            <h3 className="mb-3">Confirm Signing</h3>
+            <p className="text-gray-500 mb-6 text-sm">
               This will embed your signature at {signaturePlacements.length} location
               {signaturePlacements.length !== 1 ? 's' : ''}
               {nonEmptyTextFields.length > 0 && (
@@ -436,16 +302,10 @@ export default function SignPage() {
               )}
               , compute a hash, and anchor it on-chain. This action cannot be undone.
             </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowConfirm(false)}
-                style={{
-                  padding: '8px 20px',
-                  background: '#f3f4f6',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
+                className="px-5 py-2 bg-gray-100 border-none rounded-md cursor-pointer text-gray-600 hover:text-gray-800"
               >
                 Cancel
               </button>
@@ -454,14 +314,7 @@ export default function SignPage() {
                   setShowConfirm(false);
                   startSigning();
                 }}
-                style={{
-                  padding: '8px 20px',
-                  background: '#16a34a',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
+                className="px-5 py-2 bg-brand-700 hover:bg-brand-800 text-white border-none rounded-md cursor-pointer"
               >
                 Confirm
               </button>

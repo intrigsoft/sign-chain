@@ -41,84 +41,32 @@ export default function FileOpenChooser() {
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 300,
-      }}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: 32,
-          maxWidth: 420,
-          width: '100%',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-        }}
-      >
-        <h3 style={{ fontSize: 18, marginBottom: 8 }}>Open PDF</h3>
-        <p
-          style={{
-            color: '#666',
-            fontSize: 14,
-            marginBottom: 24,
-            wordBreak: 'break-all',
-          }}
-        >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[300]">
+      <div className="bg-white rounded-xl p-8 max-w-[420px] w-full shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+        <h3 className="text-lg mb-2">Open PDF</h3>
+        <p className="text-gray-500 text-sm mb-6 break-all">
           {fileName}
         </p>
-        <p style={{ color: '#374151', fontSize: 14, marginBottom: 20 }}>
+        <p className="text-gray-700 text-sm mb-5">
           What would you like to do with this document?
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           <button
             onClick={handleSign}
-            style={{
-              padding: '12px 20px',
-              fontSize: 14,
-              background: '#16a34a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            className="py-3 px-5 text-sm bg-green-600 text-white border-none rounded-lg cursor-pointer font-medium"
           >
             Sign with SignChain
           </button>
           <button
             onClick={handleVerify}
-            style={{
-              padding: '12px 20px',
-              fontSize: 14,
-              background: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 500,
-            }}
+            className="py-3 px-5 text-sm bg-brand-700 text-white border-none rounded-lg cursor-pointer font-medium"
           >
             Verify with SignChain
           </button>
           <button
             onClick={handleCancel}
-            style={{
-              padding: '12px 20px',
-              fontSize: 14,
-              background: '#f3f4f6',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: 8,
-              cursor: 'pointer',
-            }}
+            className="py-3 px-5 text-sm bg-gray-100 text-gray-700 border border-gray-300 rounded-lg cursor-pointer"
           >
             Cancel
           </button>

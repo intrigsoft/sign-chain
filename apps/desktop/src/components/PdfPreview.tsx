@@ -10,39 +10,26 @@ export default function PdfPreview({ filePath, compact }: PdfPreviewProps) {
     usePdfPreview(filePath);
 
   if (loading) {
-    return <p style={{ padding: 16, color: '#666' }}>Loading PDF...</p>;
+    return <p className="p-4 text-gray-500">Loading PDF...</p>;
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="flex flex-col items-center">
       <canvas
         ref={canvasRef}
-        style={{
-          maxWidth: '100%',
-          maxHeight: compact ? 250 : undefined,
-          objectFit: 'contain',
-        }}
+        className="max-w-full object-contain"
+        style={compact ? { maxHeight: 250 } : undefined}
       />
       {pageCount > 1 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginTop: 8,
-            fontSize: 14,
-          }}
-        >
+        <div className="flex items-center gap-3 mt-2 text-sm">
           <button
             onClick={prevPage}
             disabled={currentPage <= 1}
-            style={{
-              padding: '4px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: 4,
-              background: currentPage <= 1 ? '#f3f4f6' : '#fff',
-              cursor: currentPage <= 1 ? 'default' : 'pointer',
-            }}
+            className={`py-1 px-3 border border-gray-300 rounded ${
+              currentPage <= 1
+                ? 'bg-gray-100 cursor-default'
+                : 'bg-white cursor-pointer'
+            }`}
           >
             Prev
           </button>
@@ -52,13 +39,11 @@ export default function PdfPreview({ filePath, compact }: PdfPreviewProps) {
           <button
             onClick={nextPage}
             disabled={currentPage >= pageCount}
-            style={{
-              padding: '4px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: 4,
-              background: currentPage >= pageCount ? '#f3f4f6' : '#fff',
-              cursor: currentPage >= pageCount ? 'default' : 'pointer',
-            }}
+            className={`py-1 px-3 border border-gray-300 rounded ${
+              currentPage >= pageCount
+                ? 'bg-gray-100 cursor-default'
+                : 'bg-white cursor-pointer'
+            }`}
           >
             Next
           </button>

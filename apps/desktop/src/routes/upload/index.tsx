@@ -17,90 +17,49 @@ export default function UploadPage() {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div className="flex h-screen">
       {/* Left panel */}
-      <div
-        style={{
-          width: 320,
-          padding: 24,
-          borderRight: '1px solid #e5e7eb',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <div className="w-80 p-6 border-r border-gray-200 flex flex-col">
         <button
           onClick={() => navigate('/dashboard')}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            marginBottom: 24,
-            textAlign: 'left',
-            color: '#2563eb',
-          }}
+          className="bg-transparent border-none cursor-pointer mb-6 text-left text-brand-700 hover:text-brand-800"
         >
           &larr; Back
         </button>
 
-        <h2 style={{ fontSize: 20, marginBottom: 16 }}>Upload PDF</h2>
+        <h2 className="text-xl mb-4">Upload PDF</h2>
 
         <button
           onClick={handleBrowse}
-          style={{
-            padding: '12px 24px',
-            fontSize: 14,
-            background: '#2563eb',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            cursor: 'pointer',
-            marginBottom: 16,
-          }}
+          className="px-6 py-3 text-sm bg-brand-700 hover:bg-brand-800 text-white border-none rounded-lg cursor-pointer mb-4"
         >
           Browse...
         </button>
 
         {fileName && (
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontWeight: 600 }}>{fileName}</p>
-            <p style={{ color: '#666', fontSize: 14 }}>{pageCount} page(s)</p>
+          <div className="mb-4">
+            <p className="font-semibold">{fileName}</p>
+            <p className="text-gray-500 text-sm">{pageCount} page(s)</p>
           </div>
         )}
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         <button
           onClick={() => navigate('/sign')}
           disabled={!filePath}
-          style={{
-            padding: '12px 24px',
-            fontSize: 14,
-            background: filePath ? '#2563eb' : '#ccc',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            cursor: filePath ? 'pointer' : 'default',
-          }}
+          className="px-6 py-3 text-sm bg-brand-700 hover:bg-brand-800 text-white border-none rounded-lg cursor-pointer disabled:bg-gray-300 disabled:cursor-default disabled:hover:bg-gray-300"
         >
           Continue &rarr;
         </button>
       </div>
 
       {/* Right panel — PDF preview */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#f9fafb',
-          overflow: 'auto',
-        }}
-      >
+      <div className="flex-1 flex items-center justify-center bg-gray-50 overflow-auto">
         {filePath ? (
           <PdfPreview filePath={filePath} />
         ) : (
-          <p style={{ color: '#999' }}>Select a PDF to preview</p>
+          <p className="text-gray-400">Select a PDF to preview</p>
         )}
       </div>
     </div>

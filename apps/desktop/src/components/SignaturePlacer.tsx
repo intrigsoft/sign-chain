@@ -56,40 +56,28 @@ function QrPlaceholder({
     <>
       {/* QR box */}
       <div
+        className="absolute bottom-0 flex items-center justify-center rounded pointer-events-none font-semibold opacity-70"
         style={{
-          position: 'absolute',
           left: '100%',
-          bottom: 0,
           width: qrSize,
           height: qrSize,
           marginLeft: 4 * scale,
           border: `2px dashed ${borderColor}`,
-          borderRadius: 4,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
           color: borderColor,
           fontSize: 11,
-          fontWeight: 600,
-          opacity: 0.7,
         }}
       >
         QR
       </div>
       {/* Branding text below QR */}
       <div
+        className="absolute text-right text-gray-400 pointer-events-none whitespace-nowrap"
         style={{
-          position: 'absolute',
           left: `calc(100% + ${4 * scale + quietZone}px)`,
           bottom: -(brandFontSize + 4 - quietZone),
           width: qrSize - 2 * quietZone,
-          textAlign: 'right',
           fontSize: brandFontSize,
           fontFamily: 'Helvetica, Arial, sans-serif',
-          color: '#999',
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
           lineHeight: 1,
         }}
       >
@@ -493,40 +481,28 @@ export default function SignaturePlacer({
   return (
     <div
       ref={outerRef}
-      style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}
+      className="flex flex-col h-full w-full"
     >
       {/* Zoom bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          padding: '6px 12px',
-          borderBottom: '1px solid #e5e7eb',
-          background: '#fff',
-          flexShrink: 0,
-          fontSize: 13,
-        }}
-      >
-        <button onClick={zoomOut} style={zoomBtnStyle}>
+      <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-white shrink-0 text-[13px]">
+        <button onClick={zoomOut} className="px-2.5 py-0.5 text-sm bg-gray-100 border border-gray-300 rounded cursor-pointer leading-[22px]">
           −
         </button>
-        <span style={{ minWidth: 48, textAlign: 'center' }}>
+        <span className="min-w-[48px] text-center">
           {zoomPercent}%
         </span>
-        <button onClick={zoomIn} style={zoomBtnStyle}>
+        <button onClick={zoomIn} className="px-2.5 py-0.5 text-sm bg-gray-100 border border-gray-300 rounded cursor-pointer leading-[22px]">
           +
         </button>
-        <span style={{ width: 1, height: 16, background: '#d1d5db' }} />
-        <button onClick={setActualSize} style={zoomBtnStyle}>
+        <span className="w-px h-4 bg-gray-300" />
+        <button onClick={setActualSize} className="px-2.5 py-0.5 text-sm bg-gray-100 border border-gray-300 rounded cursor-pointer leading-[22px]">
           100%
         </button>
-        <button onClick={resetZoom} style={zoomBtnStyle}>
+        <button onClick={resetZoom} className="px-2.5 py-0.5 text-sm bg-gray-100 border border-gray-300 rounded cursor-pointer leading-[22px]">
           Fit Width
         </button>
         {pageCount > 1 && (
-          <span style={{ marginLeft: 12, color: '#666' }}>
+          <span className="ml-3 text-gray-500">
             Page {currentPage}/{pageCount}
           </span>
         )}
@@ -537,19 +513,10 @@ export default function SignaturePlacer({
         ref={scrollRef}
         onScroll={handleScroll}
         onClick={handleBackgroundClick}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 12,
-          padding: '12px 0',
-          background: '#f9fafb',
-        }}
+        className="flex-1 overflow-y-auto flex flex-col items-center gap-3 py-3 bg-gray-50"
       >
         {loading && (
-          <p style={{ color: '#999', marginTop: 32 }}>Loading PDF...</p>
+          <p className="text-gray-400 mt-8">Loading PDF...</p>
         )}
         {pdfDoc &&
           pages.map((pageInfo) => {
@@ -580,13 +547,10 @@ export default function SignaturePlacer({
                 onDragOver={handlePageDragOver}
                 onDrop={makeDropHandler(pageInfo)}
                 onClick={handleBackgroundClick}
+                className="relative shrink-0 shadow-sm bg-white"
                 style={{
-                  position: 'relative',
                   width: widthPx,
                   height: heightPx,
-                  flexShrink: 0,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-                  background: '#fff',
                 }}
               >
                 <PdfPageCanvas
@@ -601,11 +565,10 @@ export default function SignaturePlacer({
                 {signatureBase64 &&
                   pagePlacements.map((cp) => {
                     const isSelected = selectedIndex === cp.idx;
-                    const borderColor = isSelected ? '#2563eb' : '#16a34a';
+                    const borderColor = isSelected
+                      ? 'var(--color-brand-700)'
+                      : '#16a34a';
                     const borderStyle = isSelected ? 'dashed' : 'solid';
-                    const bgColor = isSelected
-                      ? 'rgba(37,99,235,0.05)'
-                      : 'rgba(22,163,74,0.08)';
 
                     return (
                       <div
@@ -631,30 +594,24 @@ export default function SignaturePlacer({
                         onPointerLeave={
                           isSelected && isDragging ? handleMoveEnd : undefined
                         }
+                        className={`absolute rounded select-none touch-none ${
+                          isSelected
+                            ? 'bg-brand-50/30 cursor-move'
+                            : 'bg-green-600/8 cursor-pointer'
+                        }`}
                         style={{
-                          position: 'absolute',
                           left: cp.x,
                           top: cp.y,
                           width: cp.w,
                           height: cp.h,
                           border: `2px ${borderStyle} ${borderColor}`,
-                          borderRadius: 4,
-                          background: bgColor,
-                          cursor: isSelected ? 'move' : 'pointer',
-                          userSelect: 'none',
-                          touchAction: 'none',
                         }}
                       >
                         <img
                           src={`data:image/png;base64,${signatureBase64}`}
                           alt="Placed signature"
                           draggable={false}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            pointerEvents: 'none',
-                          }}
+                          className="w-full h-full object-contain pointer-events-none"
                         />
                         <QrPlaceholder sigHeight={cp.h} scale={scale} borderColor={borderColor} />
 
@@ -665,7 +622,7 @@ export default function SignaturePlacer({
                               onPlacementRemoved(cp.idx);
                               setSelectedIndex(null);
                             }}
-                            style={deleteBtnStyle}
+                            className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-red-500 text-white border-none cursor-pointer text-xs leading-5 text-center p-0 flex items-center justify-center"
                           >
                             ×
                           </button>
@@ -691,7 +648,7 @@ export default function SignaturePlacer({
                             onPointerLeave={
                               isResizing ? handleResizeEnd : undefined
                             }
-                            style={resizeHandleStyle}
+                            className="absolute -right-[5px] -bottom-[5px] w-2.5 h-2.5 bg-brand-700 rounded-sm cursor-nwse-resize"
                           />
                         )}
                       </div>
@@ -704,7 +661,9 @@ export default function SignaturePlacer({
                   const isSelected = selectedFieldId === tf.id;
                   const isHovered = hoveredFieldId === tf.id;
                   const showControls = isSelected || isHovered;
-                  const borderColor = isSelected ? '#2563eb' : '#7c3aed';
+                  const borderColor = isSelected
+                    ? 'var(--color-brand-700)'
+                    : 'var(--color-brand-600)';
                   const borderStyle = isSelected ? 'dashed' : 'solid';
                   const scaledFontSize = tf.fontSize * scale;
                   const gripW = 24;
@@ -740,23 +699,17 @@ export default function SignaturePlacer({
                       onPointerUp={
                         isDraggingField ? handleFieldMoveEnd : undefined
                       }
+                      className={`absolute inline-block rounded-sm cursor-default select-none touch-none px-1 py-0.5 box-border ${
+                        isSelected
+                          ? 'bg-brand-50/30'
+                          : 'bg-brand-50/30'
+                      }`}
                       style={{
-                        position: 'absolute',
                         left: screen.x,
                         top: screen.y,
-                        display: 'inline-block',
                         minWidth: MIN_FIELD_WIDTH,
                         minHeight: scaledFontSize * 1.8,
                         border: `1px ${borderStyle} ${borderColor}`,
-                        borderRadius: 2,
-                        background: isSelected
-                          ? 'rgba(37,99,235,0.05)'
-                          : 'rgba(124,58,237,0.05)',
-                        cursor: 'default',
-                        userSelect: 'none',
-                        touchAction: 'none',
-                        padding: '2px 4px',
-                        boxSizing: 'border-box',
                       }}
                     >
                       {/* Grip handle — flush against left edge (child, so
@@ -780,24 +733,12 @@ export default function SignaturePlacer({
                             setIsDraggingField(true);
                             container.setPointerCapture(e.pointerId);
                           }}
+                          className="absolute flex items-center justify-center cursor-grab text-gray-500 text-sm select-none touch-none bg-gray-50 rounded-l border border-gray-300 border-r-0"
                           style={{
-                            position: 'absolute',
                             left: -gripW,
                             top: -1,
                             width: gripW,
                             height: 'calc(100% + 2px)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'grab',
-                            color: '#6b7280',
-                            fontSize: 14,
-                            userSelect: 'none',
-                            touchAction: 'none',
-                            background: '#f9fafb',
-                            borderRadius: '3px 0 0 3px',
-                            border: `1px solid #d1d5db`,
-                            borderRight: 'none',
                           }}
                         >
                           ⠿
@@ -812,7 +753,7 @@ export default function SignaturePlacer({
                             onTextFieldRemoved(tf.id);
                             setSelectedFieldId(null);
                           }}
-                          style={deleteBtnStyle}
+                          className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-red-500 text-white border-none cursor-pointer text-xs leading-5 text-center p-0 flex items-center justify-center"
                         >
                           ×
                         </button>
@@ -820,14 +761,12 @@ export default function SignaturePlacer({
 
                       {/* Auto-sizing input: hidden span measures text,
                           input stretches to match */}
-                      <div style={{ position: 'relative', display: 'inline-block', minWidth: MIN_FIELD_WIDTH - 10 }}>
+                      <div className="relative inline-block" style={{ minWidth: MIN_FIELD_WIDTH - 10 }}>
                         <span
+                          className="invisible whitespace-pre p-0"
                           style={{
-                            visibility: 'hidden',
-                            whiteSpace: 'pre',
                             fontSize: scaledFontSize,
                             fontFamily: 'Helvetica, Arial, sans-serif',
-                            padding: 0,
                           }}
                         >
                           {displayText}
@@ -846,21 +785,10 @@ export default function SignaturePlacer({
                           }
                           onClick={(e) => e.stopPropagation()}
                           onPointerDown={(e) => e.stopPropagation()}
+                          className="absolute left-0 top-0 w-full h-full border-none outline-none bg-transparent text-black cursor-text p-0 m-0"
                           style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            width: '100%',
-                            height: '100%',
-                            border: 'none',
-                            outline: 'none',
-                            background: 'transparent',
                             fontSize: scaledFontSize,
                             fontFamily: 'Helvetica, Arial, sans-serif',
-                            padding: 0,
-                            margin: 0,
-                            color: '#000',
-                            cursor: 'text',
                           }}
                         />
                       </div>
@@ -868,19 +796,10 @@ export default function SignaturePlacer({
                       {/* Bottom toolbar — flush below field */}
                       {showControls && (
                         <div
+                          className="absolute flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-b border-t-0 px-1.5 py-0.5 whitespace-nowrap"
                           style={{
-                            position: 'absolute',
                             left: -1,
                             top: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            background: '#f9fafb',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '0 0 3px 3px',
-                            borderTop: 'none',
-                            padding: '2px 6px',
-                            whiteSpace: 'nowrap',
                           }}
                         >
                           <select
@@ -893,7 +812,7 @@ export default function SignaturePlacer({
                             }}
                             onClick={(e) => e.stopPropagation()}
                             onPointerDown={(e) => e.stopPropagation()}
-                            style={fontSizeSelectStyle}
+                            className="text-[11px] px-0.5 py-0 border border-gray-300 rounded-sm bg-gray-50 cursor-pointer outline-none h-[18px]"
                           >
                             {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32].map(
                               (sz) => (
@@ -903,7 +822,7 @@ export default function SignaturePlacer({
                               ),
                             )}
                           </select>
-                          <span style={{ fontSize: 10, color: '#888' }}>
+                          <span className="text-[10px] text-gray-400">
                             {tf.fieldType}
                           </span>
                         </div>
@@ -918,55 +837,3 @@ export default function SignaturePlacer({
     </div>
   );
 }
-
-const zoomBtnStyle: React.CSSProperties = {
-  padding: '2px 10px',
-  fontSize: 14,
-  background: '#f3f4f6',
-  border: '1px solid #d1d5db',
-  borderRadius: 4,
-  cursor: 'pointer',
-  lineHeight: '22px',
-};
-
-const deleteBtnStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: -10,
-  right: -10,
-  width: 20,
-  height: 20,
-  borderRadius: '50%',
-  background: '#ef4444',
-  color: '#fff',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: 12,
-  lineHeight: '20px',
-  textAlign: 'center',
-  padding: 0,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-
-const resizeHandleStyle: React.CSSProperties = {
-  position: 'absolute',
-  right: -5,
-  bottom: -5,
-  width: 10,
-  height: 10,
-  background: '#2563eb',
-  borderRadius: 2,
-  cursor: 'nwse-resize',
-};
-
-const fontSizeSelectStyle: React.CSSProperties = {
-  fontSize: 11,
-  padding: '0 2px',
-  border: '1px solid #d1d5db',
-  borderRadius: 3,
-  background: '#f9fafb',
-  cursor: 'pointer',
-  outline: 'none',
-  height: 18,
-};

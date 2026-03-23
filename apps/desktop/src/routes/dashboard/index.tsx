@@ -64,12 +64,10 @@ function RevisionPage({
   return (
     <canvas
       ref={canvasRef}
+      className="block bg-white rounded"
       style={{
-        display: 'block',
         width: dims?.w ?? containerWidth,
         height: dims?.h ?? 200,
-        background: '#fff',
-        borderRadius: 4,
       }}
     />
   );
@@ -105,7 +103,7 @@ function RevisionPreview({
 
   if (error) {
     return (
-      <div style={{ marginTop: 12, color: '#ef4444', fontSize: 13 }}>
+      <div className="mt-3 text-red-500 text-[13px]">
         Failed to load revision: {error}
       </div>
     );
@@ -113,59 +111,29 @@ function RevisionPreview({
 
   if (!pdfDoc) {
     return (
-      <div style={{ marginTop: 12, color: '#666', fontSize: 13 }}>
+      <div className="mt-3 text-gray-500 text-[13px]">
         Loading preview...
       </div>
     );
   }
 
-  const containerWidth = 840; // fits within 900px max-width minus padding
+  const containerWidth = 840;
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        background: '#f9fafb',
-        padding: 12,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+    <div className="mt-4 border border-gray-200 rounded-lg bg-gray-50 p-3">
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-[13px] font-semibold text-gray-700">
           Revision Preview ({pdfDoc.numPages} page
           {pdfDoc.numPages !== 1 ? 's' : ''})
         </span>
         <button
           onClick={onClose}
-          style={{
-            padding: '4px 12px',
-            fontSize: 12,
-            background: '#e5e7eb',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
+          className="px-3 py-1 text-xs bg-gray-200 border-none rounded-md cursor-pointer"
         >
           Close preview
         </button>
       </div>
-      <div
-        style={{
-          maxHeight: 500,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
+      <div className="max-h-[500px] overflow-y-auto flex flex-col gap-2">
         {Array.from({ length: pdfDoc.numPages }, (_, i) => (
           <RevisionPage
             key={i}
@@ -274,13 +242,13 @@ export default function DashboardPage() {
   const { activeZoneIndex } = useTauriFileDrop(zones);
 
   return (
-    <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <img src="/logo.png" alt="SignChain" style={{ height: 32 }} />
+    <div className="p-8 max-w-[900px] mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <img src="/logo.png" alt="SignChain" className="h-8" />
       </div>
 
       {/* Drop zones */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
+      <div className="flex gap-4 mb-8">
         <FileDropZone
           ref={signRef}
           icon="✏️"
@@ -302,45 +270,17 @@ export default function DashboardPage() {
 
       {/* Inline verification results */}
       {verifying && (
-        <div
-          style={{
-            padding: 16,
-            background: '#f3f4f6',
-            borderRadius: 8,
-            marginBottom: 24,
-            fontSize: 14,
-            color: '#374151',
-          }}
-        >
+        <div className="p-4 bg-gray-100 rounded-lg mb-6 text-sm text-gray-700">
           Verifying {verifyFileName}...
         </div>
       )}
 
       {verifyError && (
-        <div
-          style={{
-            padding: 12,
-            background: '#fef2f2',
-            borderRadius: 8,
-            color: '#ef4444',
-            fontSize: 13,
-            marginBottom: 24,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
+        <div className="p-3 bg-red-50 rounded-lg text-red-500 text-[13px] mb-6 flex justify-between items-center">
           <span>{verifyError}</span>
           <button
             onClick={() => setVerifyError(null)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#ef4444',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-            }}
+            className="bg-transparent border-none text-red-500 cursor-pointer text-[13px] font-semibold"
           >
             Clear
           </button>
@@ -348,25 +288,9 @@ export default function DashboardPage() {
       )}
 
       {verifyResult && (
-        <div
-          style={{
-            marginBottom: 24,
-            border: '1px solid #e5e7eb',
-            borderRadius: 8,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 16px',
-              background: '#f9fafb',
-              borderBottom: '1px solid #e5e7eb',
-            }}
-          >
-            <span style={{ fontSize: 14, fontWeight: 600 }}>
+        <div className="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+          <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <span className="text-sm font-semibold">
               Verification: {verifyFileName}
             </span>
             <button
@@ -376,36 +300,25 @@ export default function DashboardPage() {
                 setVerifyFilePath(null);
                 setPreviewPath(null);
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#6b7280',
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
+              className="bg-transparent border-none text-gray-500 cursor-pointer text-[13px]"
             >
               Clear
             </button>
           </div>
 
-          <div style={{ padding: 16 }}>
+          <div className="p-4">
             {!verifyResult.isSignchainDocument ? (
-              <div style={{ color: '#374151', fontSize: 14 }}>
+              <div className="text-gray-700 text-sm">
                 This PDF does not contain SignChain metadata.
               </div>
             ) : (
               <>
                 <div
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    marginBottom: 16,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    background: verifyResult.chainValid ? '#f0fdf4' : '#fef2f2',
-                    color: verifyResult.chainValid ? '#16a34a' : '#ef4444',
-                    border: `1px solid ${verifyResult.chainValid ? '#bbf7d0' : '#fecaca'}`,
-                  }}
+                  className={`p-3 rounded-lg mb-4 text-sm font-semibold border ${
+                    verifyResult.chainValid
+                      ? 'bg-green-50 text-green-600 border-green-200'
+                      : 'bg-red-50 text-red-500 border-red-200'
+                  }`}
                 >
                   {verifyResult.chainValid
                     ? 'Document integrity verified'
@@ -415,78 +328,49 @@ export default function DashboardPage() {
                 <button
                   onClick={handleViewOriginal}
                   disabled={previewLoading}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: 12,
-                    background: '#f3f4f6',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 6,
-                    cursor: previewLoading ? 'default' : 'pointer',
-                    marginBottom: 12,
-                    opacity: previewLoading ? 0.6 : 1,
-                  }}
+                  className={`px-3 py-1.5 text-xs bg-gray-100 border border-gray-300 rounded-md mb-3 ${
+                    previewLoading ? 'cursor-default opacity-60' : 'cursor-pointer'
+                  }`}
                 >
                   View original
                 </button>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="flex flex-col gap-2">
                   {verifyResult.signers.map((s, i) => (
                     <div
                       key={i}
-                      style={{
-                        padding: 12,
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 8,
-                        background: '#fff',
-                      }}
+                      className="p-3 border border-gray-200 rounded-lg bg-white"
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginBottom: 4,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
                           <span
-                            style={{
-                              fontSize: 16,
-                              color: s.status === 'valid' ? '#16a34a' : '#ef4444',
-                            }}
+                            className={`text-base ${
+                              s.status === 'valid' ? 'text-green-600' : 'text-red-500'
+                            }`}
                           >
                             {s.status === 'valid' ? '\u2713' : '\u2717'}
                           </span>
-                          <span style={{ fontWeight: 600 }}>
+                          <span className="font-semibold">
                             {s.signer}{' '}
-                            <span style={{ fontWeight: 400, color: '#666' }}>
+                            <span className="font-normal text-gray-500">
                               ({s.email})
                             </span>
                           </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleViewRevision(i)}
                             disabled={previewLoading}
-                            style={{
-                              padding: '2px 8px',
-                              fontSize: 11,
-                              background: '#eff6ff',
-                              border: '1px solid #bfdbfe',
-                              borderRadius: 4,
-                              color: '#2563eb',
-                              cursor: previewLoading ? 'default' : 'pointer',
-                              opacity: previewLoading ? 0.6 : 1,
-                            }}
+                            className={`px-2 py-0.5 text-[11px] bg-brand-50 border border-brand-200 rounded text-brand-700 ${
+                              previewLoading ? 'cursor-default opacity-60' : 'cursor-pointer'
+                            }`}
                           >
                             View
                           </button>
                           <span
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: s.status === 'valid' ? '#16a34a' : '#ef4444',
-                            }}
+                            className={`text-xs font-semibold ${
+                              s.status === 'valid' ? 'text-green-600' : 'text-red-500'
+                            }`}
                           >
                             {s.status === 'valid'
                               ? 'Valid'
@@ -496,9 +380,9 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#999', marginLeft: 24 }}>
+                      <div className="text-xs text-gray-400 ml-6">
                         <div>Signed {new Date(s.timestamp).toLocaleString()}</div>
-                        <div style={{ fontFamily: 'monospace', marginTop: 2 }}>
+                        <div className="font-mono mt-0.5">
                           Hash: 0x{s.hash.slice(0, 8)}...{s.hash.slice(-8)}
                         </div>
                       </div>
@@ -521,25 +405,19 @@ export default function DashboardPage() {
 
       {/* Recent documents */}
       <div>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Recent Documents</h2>
+        <h2 className="text-lg mb-3">Recent Documents</h2>
         {isLoading && <p>Loading...</p>}
         {documents && documents.length === 0 && (
-          <p style={{ color: '#666' }}>No documents yet. Upload a PDF to get started.</p>
+          <p className="text-gray-500">No documents yet. Upload a PDF to get started.</p>
         )}
         {documents?.map((doc) => (
           <div
             key={doc.id}
             onClick={() => navigate(`/document/${doc.id}`)}
-            style={{
-              padding: 12,
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              marginBottom: 8,
-              cursor: 'pointer',
-            }}
+            className="p-3 border border-gray-200 rounded-lg mb-2 cursor-pointer"
           >
             <strong>{doc.filename}</strong>
-            <span style={{ marginLeft: 12, color: '#666' }}>{doc.status}</span>
+            <span className="ml-3 text-gray-500">{doc.status}</span>
           </div>
         ))}
       </div>

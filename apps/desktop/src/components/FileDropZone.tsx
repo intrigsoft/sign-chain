@@ -15,63 +15,36 @@ const FileDropZone = forwardRef<HTMLDivElement, FileDropZoneProps>(
       <div
         ref={ref}
         onClick={disabled ? undefined : onClick}
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 32,
-          borderRadius: 12,
-          border: isHovering
-            ? '2px solid #2563eb'
-            : '2px dashed #d1d5db',
-          background: isHovering ? '#eff6ff' : '#f9fafb',
-          cursor: disabled ? 'default' : 'pointer',
-          opacity: disabled ? 0.5 : 1,
-          transition: 'all 150ms ease',
-          transform: isHovering ? 'scale(1.02)' : 'scale(1)',
-          minHeight: 200,
-        }}
+        className={[
+          'flex flex-1 flex-col items-center justify-center',
+          'rounded-xl p-8 min-h-[200px]',
+          'transition-all duration-150 ease-in-out',
+          isHovering
+            ? 'border-2 border-solid border-brand-700 bg-brand-50 scale-[1.02]'
+            : 'border-2 border-dashed border-gray-300 bg-gray-50 scale-100',
+          disabled ? 'cursor-default opacity-50' : 'cursor-pointer opacity-100',
+        ].join(' ')}
       >
         <span
-          style={{
-            fontSize: 40,
-            marginBottom: 12,
-            filter: isHovering ? 'none' : 'grayscale(0.3)',
-            transition: 'filter 150ms ease',
-          }}
+          className={[
+            'text-[40px] mb-3 transition-[filter] duration-150 ease-in-out',
+            isHovering ? 'grayscale-0' : 'grayscale-[0.3]',
+          ].join(' ')}
         >
           {icon}
         </span>
         <span
-          style={{
-            fontSize: 18,
-            fontWeight: 600,
-            marginBottom: 8,
-            color: isHovering ? '#2563eb' : '#111827',
-          }}
+          className={[
+            'text-lg font-semibold mb-2',
+            isHovering ? 'text-brand-700' : 'text-gray-900',
+          ].join(' ')}
         >
           {title}
         </span>
-        <span
-          style={{
-            fontSize: 14,
-            color: '#6b7280',
-            textAlign: 'center',
-            maxWidth: 220,
-            lineHeight: 1.4,
-          }}
-        >
+        <span className="text-sm text-gray-500 text-center max-w-[220px] leading-snug">
           {description}
         </span>
-        <span
-          style={{
-            fontSize: 12,
-            color: '#9ca3af',
-            marginTop: 12,
-          }}
-        >
+        <span className="text-xs text-gray-400 mt-3">
           or click to browse
         </span>
       </div>

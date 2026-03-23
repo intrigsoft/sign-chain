@@ -6,30 +6,19 @@ export default function TitleBar() {
   return (
     <div
       data-tauri-drag-region
-      style={{
-        height: 36,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        background: '#1e293b',
-        color: '#fff',
-        userSelect: 'none',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-      }}
+      className="h-9 flex items-center justify-between bg-brand-900 text-white select-none sticky top-0 z-[1000]"
     >
-      <span
+      <img
         data-tauri-drag-region
-        style={{ fontSize: 13, fontWeight: 600, paddingLeft: 14 }}
-      >
-        Sign Chain
-      </span>
+        src="/logo.png"
+        alt="SignChain"
+        className="h-[18px] pl-3.5 brightness-0 invert"
+      />
 
-      <div style={{ display: 'flex', height: '100%' }}>
+      <div className="flex h-full">
         <button
           onClick={() => appWindow.minimize()}
-          style={btnStyle}
+          className="w-[46px] h-full border-none bg-transparent text-white text-sm cursor-pointer flex items-center justify-center"
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut}
         >
@@ -37,7 +26,7 @@ export default function TitleBar() {
         </button>
         <button
           onClick={() => appWindow.toggleMaximize()}
-          style={btnStyle}
+          className="w-[46px] h-full border-none bg-transparent text-white text-sm cursor-pointer flex items-center justify-center"
           onMouseEnter={hoverIn}
           onMouseLeave={hoverOut}
         >
@@ -45,7 +34,7 @@ export default function TitleBar() {
         </button>
         <button
           onClick={() => appWindow.close()}
-          style={{ ...btnStyle, ...closeBtnStyle }}
+          className="w-[46px] h-full border-none bg-transparent text-white text-sm cursor-pointer flex items-center justify-center"
           onMouseEnter={(e) => {
             e.currentTarget.style.background = '#ef4444';
           }}
@@ -57,21 +46,6 @@ export default function TitleBar() {
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  width: 46,
-  height: '100%',
-  border: 'none',
-  background: 'transparent',
-  color: '#fff',
-  fontSize: 14,
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-
-const closeBtnStyle: React.CSSProperties = {};
 
 function hoverIn(e: React.MouseEvent<HTMLButtonElement>) {
   e.currentTarget.style.background = 'rgba(255,255,255,0.1)';

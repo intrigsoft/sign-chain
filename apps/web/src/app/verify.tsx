@@ -90,7 +90,7 @@ export default function VerifyPage() {
   return (
     <div style={container}>
       <div style={card}>
-        <h1 style={{ fontSize: 22, marginBottom: 4 }}>SignChain</h1>
+        <img src="/logo.png" alt="SignChain" style={{ height: 36, marginBottom: 4 }} />
         <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
           Document Verification
         </p>
@@ -297,7 +297,7 @@ const spinner: React.CSSProperties = {
   width: 32,
   height: 32,
   border: '3px solid #e5e7eb',
-  borderTopColor: '#2563eb',
+  borderTopColor: '#6d28d9',
   borderRadius: '50%',
   animation: 'spin 0.8s linear infinite',
   margin: '0 auto',

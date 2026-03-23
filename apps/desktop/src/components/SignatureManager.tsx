@@ -55,29 +55,26 @@ export default function SignatureManager({ onSignatureSelected }: SignatureManag
     e.target.value = '';
   };
 
-  const tabStyle = (tab: Tab) => ({
-    padding: '8px 16px',
-    fontSize: 13,
-    background: activeTab === tab ? '#2563eb' : '#f3f4f6',
-    color: activeTab === tab ? '#fff' : '#333',
-    border: 'none',
-    borderRadius: 6,
-    cursor: 'pointer' as const,
-  });
+  const tabClass = (tab: Tab) =>
+    `py-2 px-4 text-[13px] border-none rounded-md cursor-pointer ${
+      activeTab === tab
+        ? 'bg-brand-700 text-white'
+        : 'bg-gray-100 text-gray-700'
+    }`;
 
   return (
     <div>
-      <h3 style={{ fontSize: 16, marginBottom: 12 }}>Signature</h3>
+      <h3 className="text-base mb-3">Signature</h3>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-        <button onClick={() => setActiveTab('saved')} style={tabStyle('saved')}>
+      <div className="flex gap-1.5 mb-4">
+        <button onClick={() => setActiveTab('saved')} className={tabClass('saved')}>
           Saved ({savedSignatures.length})
         </button>
-        <button onClick={() => setActiveTab('draw')} style={tabStyle('draw')}>
+        <button onClick={() => setActiveTab('draw')} className={tabClass('draw')}>
           Draw
         </button>
-        <button onClick={() => setActiveTab('upload')} style={tabStyle('upload')}>
+        <button onClick={() => setActiveTab('upload')} className={tabClass('upload')}>
           Upload
         </button>
       </div>
@@ -86,52 +83,34 @@ export default function SignatureManager({ onSignatureSelected }: SignatureManag
       {activeTab === 'saved' && (
         <div>
           {savedSignatures.length === 0 ? (
-            <p style={{ color: '#999', fontSize: 14 }}>
+            <p className="text-gray-400 text-sm">
               No saved signatures yet. Draw or upload one.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {savedSignatures.map((sig) => (
                 <div
                   key={sig.id}
                   onClick={() => handleSelectSaved(sig.id, sig.base64)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: 8,
-                    border: `2px solid ${selectedId === sig.id ? '#2563eb' : '#e5e7eb'}`,
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    background: selectedId === sig.id ? '#eff6ff' : '#fff',
-                  }}
+                  className={`flex items-center gap-3 p-2 border-2 rounded-lg cursor-pointer ${
+                    selectedId === sig.id
+                      ? 'border-brand-700 bg-brand-50'
+                      : 'border-gray-200 bg-white'
+                  }`}
                 >
                   <img
                     src={`data:image/png;base64,${sig.base64}`}
                     alt={sig.label}
-                    style={{
-                      width: 80,
-                      height: 40,
-                      objectFit: 'contain',
-                      background: '#f9fafb',
-                      borderRadius: 4,
-                    }}
+                    className="w-20 h-10 object-contain bg-gray-50 rounded"
                   />
-                  <span style={{ flex: 1, fontSize: 13 }}>{sig.label}</span>
+                  <span className="flex-1 text-[13px]">{sig.label}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       removeSavedSignature(sig.id);
                       if (selectedId === sig.id) setSelectedId(null);
                     }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      fontSize: 16,
-                      padding: '0 4px',
-                    }}
+                    className="bg-transparent border-none text-red-500 cursor-pointer text-base px-1"
                   >
                     &times;
                   </button>
@@ -153,16 +132,11 @@ export default function SignatureManager({ onSignatureSelected }: SignatureManag
           <button
             onClick={handleSaveDrawn}
             disabled={!drawnBase64}
-            style={{
-              marginTop: 8,
-              padding: '8px 16px',
-              fontSize: 13,
-              background: drawnBase64 ? '#2563eb' : '#ccc',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              cursor: drawnBase64 ? 'pointer' : 'default',
-            }}
+            className={`mt-2 py-2 px-4 text-[13px] text-white border-none rounded-md ${
+              drawnBase64
+                ? 'bg-brand-700 cursor-pointer'
+                : 'bg-gray-300 cursor-default'
+            }`}
           >
             Save Signature
           </button>
@@ -172,7 +146,7 @@ export default function SignatureManager({ onSignatureSelected }: SignatureManag
       {/* Upload tab */}
       {activeTab === 'upload' && (
         <div>
-          <p style={{ color: '#666', fontSize: 13, marginBottom: 12 }}>
+          <p className="text-gray-500 text-[13px] mb-3">
             Upload a PNG or JPG image of your signature.
           </p>
           <input
@@ -180,19 +154,11 @@ export default function SignatureManager({ onSignatureSelected }: SignatureManag
             type="file"
             accept="image/png,image/jpeg"
             onChange={handleFileUpload}
-            style={{ display: 'none' }}
+            className="hidden"
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              padding: '12px 24px',
-              fontSize: 14,
-              background: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-            }}
+            className="py-3 px-6 text-sm bg-brand-700 text-white border-none rounded-lg cursor-pointer"
           >
             Choose Image...
           </button>
