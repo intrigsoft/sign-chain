@@ -24,7 +24,7 @@ The PDF bytes never leave the signer's machine. The API receives only hashes and
 ## What SignChain Does NOT Guarantee
 
 ### 1. Identity Verification
-SignChain records what the signer *claims* their identity is. It does not verify that "Jane Doe" is actually Jane Doe. Identity verification (KYC) is out of scope and would require integration with an identity provider.
+SignChain authenticates signers via magic link (email verification), Google OAuth, or Microsoft OAuth. Each signature records a **trust anchor** indicating the authentication method (e.g. `"google"`, `"email"`). However, this confirms *account ownership*, not real-world identity. SignChain does not perform KYC -- it does not verify that "Jane Doe" is who she says she is beyond what the auth provider confirms. Future integrations with government ID providers (e.g. Singpass, eID) will offer stronger identity assurance.
 
 ### 2. Document Content Validation
 SignChain proves a document was signed, not that the document's content is accurate, legal, or binding. The legal weight of a SignChain signature depends on jurisdiction.

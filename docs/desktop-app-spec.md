@@ -22,7 +22,8 @@ packages/desktop/
 │       ├── lib.rs                    Shared state, AppState definition
 │       ├── commands/
 │       │   ├── mod.rs
-│       │   ├── auth.rs               PKCE flow, deep link handling
+│       │   ├── auth.rs               Keychain JWT/profile storage, open_auth_browser
+│       │   ├── library.rs            Persistent signature & text snippet storage + sync preference
 │       │   ├── pdf.rs                sign_document, preview_pdf
 │       │   ├── documents.rs          list_documents, get_document
 │       │   └── quota.rs              get_quota
@@ -56,19 +57,22 @@ packages/desktop/
 │   │   ├── SignerList.tsx            Drag-to-reorder signer rows
 │   │   ├── QuotaBadge.tsx            Signs used / quota display
 │   │   ├── ChainStatus.tsx           Hash chain visualisation
-│   │   └── TitleBar.tsx              Custom draggable title bar
+│   │   ├── CloudLibraryPrompt.tsx    New-device cloud library download prompt
+│   │   └── TitleBar.tsx              Custom draggable title bar (shows user email + sign out)
 │   ├── hooks/
-│   │   ├── useAuth.ts                Clerk JWT state
-│   │   ├── useSign.ts                Orchestrates the full signing flow
+│   │   ├── useAuthInit.ts            Load JWT + profile from keychain on mount, listen for deep link
+│   │   ├── useSign.ts                Orchestrates the full signing flow (includes trust metadata)
 │   │   ├── useDocuments.ts           Document list + polling
 │   │   ├── useQuota.ts               Fetch and cache quota state
 │   │   └── usePdfPreview.ts          PDF.js load + page management
 │   ├── lib/
-│   │   ├── tauri.ts                  Typed invoke() wrappers
-│   │   ├── api.ts                    Backend HTTP client (attaches JWT)
+│   │   ├── tauri.ts                  Typed invoke() wrappers (includes trust/verified params)
+│   │   ├── api.ts                    Backend HTTP client (attaches JWT from auth store)
 │   │   └── constants.ts              API base URL, chain ID, etc.
 │   └── store/
-│       └── signing.ts                Zustand store for in-progress signing session
+│       ├── signing.ts                Zustand store for in-progress signing session
+│       ├── auth.ts                   Zustand store for JWT + decoded user claims
+│       └── library.ts                Zustand store for saved signatures, text snippets + cloud sync
 ├── package.json
 └── vite.config.ts
 ```
@@ -80,16 +84,16 @@ packages/desktop/
 ### AppState
 
 ```rust
-// src-tauri/src/lib.rs
+// src-tauri/src/state.rs
 
 pub struct AppState {
-    pub jwt: Mutex<Option<String>>,         // Clerk JWT — set after auth
+    pub jwt: Mutex<Option<String>>,         // JWT — loaded from keychain on startup
     pub api_base: String,                   // Backend base URL from env
     pub http: reqwest::Client,              // Shared HTTP client
 }
 ```
 
-`AppState` is initialised in `main.rs` and injected into every command via `tauri::State`.
+`AppState` is initialised in `lib.rs` and injected into every command via `tauri::State`.
 
 ---
 
@@ -100,26 +104,28 @@ All commands are `async` and return `Result<T, String>`. Errors are plain string
 #### `auth`
 
 ```rust
-// open_auth_browser() → ()
-// Opens Clerk sign-in in the system browser.
-// URL: https://accounts.signchain.app/sign-in
-//      ?redirect_uri=signchain://auth/callback
-//      &response_type=code
-//      &code_challenge=<PKCE>
-//      &code_challenge_method=S256
-// PKCE verifier stored in AppState for exchange step.
+// open_auth_browser(provider: String) → ()
+// Opens {api_base}/auth/{provider} in the system browser via shell plugin.
+// provider is "google", "microsoft", or "magic-link".
 
-// handle_auth_callback(code: String) → String (JWT)
-// Called from the deep link handler in main.rs.
-// Exchanges the code for a Clerk JWT, stores in AppState.jwt.
-// Returns the JWT so the React layer can cache it.
+// get_stored_jwt() → Option<String>
+// Reads JWT from OS keychain (service: "com.intrigsoft.signchain", user: "jwt").
 
-// get_jwt() → Option<String>
-// Returns the stored JWT. React calls this on startup to restore session.
+// store_jwt(token: String) → ()
+// Saves JWT to OS keychain + updates AppState.jwt.
 
-// sign_out() → ()
-// Clears AppState.jwt and OS keychain entry.
+// clear_stored_jwt() → ()
+// Removes JWT and profile from OS keychain, clears AppState.jwt.
+
+// store_profile(profile_json: String) → ()
+// Saves user profile JSON to OS keychain (user: "profile").
+// Profile contains: { name, company, position }.
+
+// get_stored_profile() → Option<String>
+// Reads profile JSON from OS keychain.
 ```
+
+Keychain storage uses the `keyring` crate with service `"com.intrigsoft.signchain"`.
 
 #### `pdf`
 
@@ -177,6 +183,41 @@ All commands are `async` and return `Result<T, String>`. Errors are plain string
 // QuotaState { used: u32, quota: u32, reset_at: String }
 // Proxies GET /users/me/quota.
 ```
+
+#### `library`
+
+```rust
+// save_library_signature(id, label, base64_png) → ()
+// Decodes base64 PNG and writes to app data dir. Updates library.json metadata.
+
+// delete_library_signature(id) → ()
+// Removes PNG file and metadata entry.
+
+// load_library_signature(id) → String
+// Returns base64-encoded PNG from app data dir.
+
+// load_library() → LibraryData
+// Returns all signature entries and text snippets metadata from library.json.
+
+// save_text_snippet(id, label, text, font_size) → ()
+// Adds or updates a text snippet in library.json.
+
+// delete_text_snippet(id) → ()
+// Removes a text snippet from library.json.
+
+// update_library_signature_label(id, label) → ()
+// Updates the label of a saved signature.
+
+// get_sync_enabled() → bool
+// Returns whether cloud sync is enabled (from library.json sync_enabled field).
+
+// set_sync_enabled(enabled: bool) → ()
+// Persists the sync preference to library.json.
+```
+
+Library data is stored in the app data directory under `library/`:
+- `library.json` — metadata for all signatures and text snippets, plus `syncEnabled` flag
+- `library/signatures/*.png` — signature image files
 
 ---
 
@@ -244,6 +285,13 @@ Hashing occurs after the full embed (including QR placeholder). This means the h
   "identifier": "com.intrigsoft.signchain",
   "productName": "SignChain",
   "version": "0.1.0",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["signchain"]
+      }
+    }
+  },
   "app": {
     "withGlobalTauri": false,
     "windows": [
@@ -257,8 +305,7 @@ Hashing occurs after the full embed (including QR placeholder). This means the h
         "transparent": false,
         "resizable": true
       }
-    ],
-    "deepLinkProtocols": ["signchain"]
+    ]
   },
   "bundle": {
     "active": true,
@@ -266,6 +313,8 @@ Hashing occurs after the full embed (including QR placeholder). This means the h
   }
 }
 ```
+
+Deep link handling: On macOS, `tauri-plugin-deep-link` emits `deep-link://new-url` events. On Linux/Windows, the URL arrives as a CLI argument. Both paths extract the JWT from `signchain://auth/callback?token=<jwt>` and emit an `auth-callback` Tauri event to the frontend.
 
 ```json
 // capabilities/default.json
@@ -289,27 +338,52 @@ Hashing occurs after the full embed (including QR placeholder). This means the h
 ### Routing
 
 ```
-/                     → redirect to /dashboard if authenticated, else /auth
-/auth                 → triggers open_auth_browser command, shows waiting state
-/auth/callback        → handles deep link return, exchanges code, redirects to /dashboard
-/dashboard            → document list
+/                     → redirect to /dashboard if authenticated, else /identity
+/identity             → login flow (magic link / OAuth) + profile step
+/dashboard            → document list (requires JWT + userIdentity)
 /upload               → file picker + PDF preview
 /signers              → add signers, set order (receives pdf_path in location state)
 /sign                 → signature canvas + confirm (receives pdf_path, signers in state)
 /documents/:id        → document detail, signer status timeline
+/library              → manage saved signatures and text snippets, cloud sync toggle
 ```
 
 React Router v6 with `MemoryRouter` (no browser URL bar in Tauri).
+
+**Route guard** (`RequireAuth`): checks both `jwt` (from auth store) and `userIdentity` (from signing store). Missing either → redirect to `/identity`.
 
 ---
 
 ### State Management
 
-**Zustand** for the in-progress signing session. This persists across route transitions without prop drilling.
+**Zustand** for both auth state and the in-progress signing session.
+
+#### Auth Store (`src/store/auth.ts`)
 
 ```typescript
-// src/store/signing.ts
+interface AuthUser {
+  sub: string;
+  email: string;
+  name: string;
+  trust: string;     // "email", "google", "microsoft"
+  verified: boolean;
+}
 
+interface AuthState {
+  jwt: string | null;
+  user: AuthUser | null;   // decoded from JWT payload
+  loading: boolean;
+  setJwt: (token: string) => void;
+  clearAuth: () => void;
+  setLoading: (loading: boolean) => void;
+}
+```
+
+JWT is decoded client-side (base64 payload, no verification needed since the API already validated it). The `trust` and `verified` fields flow into the signing payload.
+
+#### Signing Store (`src/store/signing.ts`)
+
+```typescript
 interface SigningSession {
   pdfPath: string | null;
   pdfPageCount: number;
@@ -330,15 +404,64 @@ interface SigningSession {
 }
 ```
 
+#### Library Store (`src/store/library.ts`)
+
+```typescript
+interface LibraryState {
+  signatures: LibrarySignature[];
+  textSnippets: LibraryTextSnippet[];
+  loaded: boolean;
+
+  // Cloud sync state
+  syncEnabled: boolean;
+  syncing: boolean;
+  lastSyncedAt: number | null;
+
+  // Local CRUD
+  load: () => Promise<void>;
+  saveSignature: (base64: string, label: string) => Promise<string>;
+  deleteSignature: (id: string) => Promise<void>;
+  // ... other local mutations
+
+  // Cloud sync actions
+  setSyncEnabled: (enabled: boolean) => Promise<void>;
+  pushToCloud: (opts?) => Promise<void>;
+  pullFromCloud: () => Promise<void>;
+  checkCloudLibrary: () => Promise<boolean>;
+  disableAndDeleteCloud: () => Promise<void>;
+}
+```
+
+**Cloud sync** is opt-in. When `syncEnabled` is true and a JWT is present, every local mutation triggers a debounced (500ms) `pushToCloud()` call. Network errors are silently ignored (fire-and-forget). When switching devices, `checkCloudLibrary()` detects existing cloud data and the `CloudLibraryPrompt` component offers to download it.
+
 **Server state** (documents, quota) managed with **TanStack Query**. Polling interval for document list: 15 seconds while the dashboard is active.
 
 ---
 
 ### Hooks
 
+#### `useAuthInit`
+
+Initialises auth state on app mount. Called once from `AuthInitializer` wrapper in `App.tsx`.
+
+```typescript
+// src/hooks/useAuthInit.ts
+
+export function useAuthInit() {
+  // On mount:
+  // 1. Load JWT from keychain via get_stored_jwt()
+  // 2. Load profile from keychain via get_stored_profile()
+  // 3. If JWT found: set auth store (jwt + decoded user)
+  // 4. If profile found: set signing store userIdentity
+  // 5. Listen for 'auth-callback' Tauri events (from deep link handler)
+  //    On event: store JWT in keychain, set auth store
+  // 6. Set loading = false when done
+}
+```
+
 #### `useSign`
 
-Orchestrates the full signing flow. Called from the Sign screen.
+Orchestrates the full signing flow. Called from the Sign screen. Reads `authUser` from the auth store and passes `trust` and `verified` to the Rust `sign_document` command.
 
 ```typescript
 // src/hooks/useSign.ts
@@ -413,22 +536,28 @@ useEffect(() => {
 
 ---
 
-#### 1. Auth Screen (`/auth`)
+#### 1. Identity Screen (`/identity`)
 
-**Purpose:** Entry point for unauthenticated users.
+**Purpose:** Entry point for unauthenticated users. Two-phase flow: login then profile.
 
-**Layout:**
-- Full-window centred layout
-- SignChain logomark + wordmark
-- "Sign in" button — triggers `open_auth_browser` command
-- Below button: small text "A browser window will open to complete sign-in"
-- After command fires: button changes to spinner + "Waiting for sign-in…"
-- On deep link return: brief "Signing you in…" state, then redirect to `/dashboard`
+**Phase 1 — Login:**
+Two tabs:
+- **Magic Link tab**: email input → POST `/auth/magic-link` → 6-digit code input → POST `/auth/magic-link/verify` → JWT
+- **Social tab**: "Sign in with Google" and "Sign in with Microsoft" buttons → `open_auth_browser(provider)` → deep link callback → JWT
+
+**Phase 2 — Profile:**
+After JWT is obtained, collect signer details:
+- Name (pre-filled from JWT if available)
+- Company (optional)
+- Position (optional)
+- Submit stores profile to OS keychain via `store_profile` and sets signing store `userIdentity`
+
+**Auto-redirect:** If both JWT and userIdentity already exist (returning user), skip to `/dashboard` automatically.
 
 **States:**
-- `idle` — show sign-in button
-- `waiting` — show spinner, "Waiting for sign-in…"
-- `error` — show error message + retry button
+- `login` — show login tabs
+- `profile` — show profile form (JWT obtained)
+- `loading` — show spinner during API calls
 
 ---
 
@@ -621,7 +750,7 @@ On `done`:
 
 Minimal for PoC.
 
-- **Account:** display name, email (read-only from Clerk), sign-out button
+- **Account:** display name, email (read-only from JWT), sign-out button
 - **Quota:** current tier, signs used / quota, reset date, "Upgrade plan" link (placeholder for PoC)
 - **About:** app version, link to Polygonscan contract, link to open-source repo
 
@@ -692,7 +821,7 @@ Segmented progress bar. Colours: neutral → amber at 70% → red at 90%.
 ```typescript
 // src/lib/api.ts
 
-import { getJwt } from './tauri';
+import { useAuthStore } from '../store/auth';
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -701,7 +830,7 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const jwt = await getJwt();
+  const jwt = useAuthStore.getState().jwt;  // sync read from Zustand
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
@@ -720,9 +849,13 @@ async function request<T>(
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  delete: <T>(path: string) => request<T>('DELETE', path),
 };
 ```
+
+JWT is read synchronously from the Zustand auth store (not from Tauri invoke).
 
 ---
 
@@ -734,48 +867,50 @@ export const api = {
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-export interface SignPayload {
-  pdfPath: string;
-  signerEmail: string;
-  signatureImageBase64: string;
-  documentId: string;
-  previousTxHash?: string;
-}
-
 export interface SigningResult {
   docHash: string;
   txHash: string;
   outputPath: string;
 }
 
-export interface QuotaState {
-  used: number;
-  quota: number;
-  resetAt: string;
+// Auth commands (keychain-based)
+export function openAuthBrowser(provider: string) {
+  return invoke<void>('open_auth_browser', { provider });
+}
+export function getStoredJwt() {
+  return invoke<string | null>('get_stored_jwt');
+}
+export function storeJwt(token: string) {
+  return invoke<void>('store_jwt', { token });
+}
+export function clearStoredJwt() {
+  return invoke<void>('clear_stored_jwt');
+}
+export function storeProfile(profileJson: string) {
+  return invoke<void>('store_profile', { profileJson });
+}
+export function getStoredProfile() {
+  return invoke<string | null>('get_stored_profile');
 }
 
-export const tauriCommands = {
-  openAuthBrowser:   ()                       => invoke<void>('open_auth_browser'),
-  handleAuthCallback:(code: string)           => invoke<string>('handle_auth_callback', { code }),
-  getJwt:            ()                       => invoke<string | null>('get_jwt'),
-  signOut:           ()                       => invoke<void>('sign_out'),
+// PDF commands
+export function signDocument(params: {
+  pdfPath: string;
+  signerEmail: string;
+  signatureImageBase64: string;
+  previousTxHash?: string;
+  trust?: string;
+  verified?: boolean;
+}) {
+  return invoke<SigningResult>('sign_document', params);
+}
 
-  openPdfPicker:     ()                       => invoke<string | null>('open_pdf_picker'),
-  getPdfPageCount:   (path: string)           => invoke<number>('get_pdf_page_count', { path }),
-  signDocument:      (payload: SignPayload)   => invoke<SigningResult>('sign_document', { payload }),
-
-  listDocuments:     ()                       => invoke<DocumentSummary[]>('list_documents'),
-  getDocument:       (id: string)             => invoke<DocumentDetail>('get_document', { id }),
-  createDocument:    (title: string, signers: SignerInvite[]) =>
-                       invoke<Document>('create_document', { title, signers }),
-
-  getQuota:          ()                       => invoke<QuotaState>('get_quota'),
-
-  pdfAssetUrl:       (path: string)           => convertFileSrc(path),
-};
-
-export const getJwt = tauriCommands.getJwt;
+export function pdfAssetUrl(path: string) {
+  return convertFileSrc(path);
+}
 ```
+
+The `signDocument` function now accepts `trust` and `verified` parameters, which are passed to the Rust `SignerInfo` struct and embedded in the anchor payload.
 
 ---
 
@@ -839,6 +974,9 @@ tauri              = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-shell  = "2"
 tauri-plugin-http   = "2"
+tauri-plugin-deep-link = "2"
+keyring            = "3"
+url                = "2"
 
 lopdf   = "0.32"
 sha2    = "0.10"
@@ -1023,7 +1161,11 @@ States:
 
 ## Acceptance Criteria (Desktop)
 
-- [ ] Auth: sign-in opens system browser, deep link returns JWT, session persists across restarts
+- [ ] Auth: magic link sends 6-digit code, code verification returns JWT
+- [ ] Auth: OAuth opens system browser, deep link returns JWT via signchain:// protocol
+- [ ] Auth: JWT and profile persist in OS keychain across app restarts
+- [ ] Auth: sign-out clears keychain and redirects to identity page
+- [ ] Auth: trust metadata (tr, v) included in signature payload
 - [ ] Upload: file picker opens, invalid PDFs are rejected inline, valid PDF renders in preview
 - [ ] Signers: email validation works, drag-to-reorder updates order numbers, duplicates are flagged
 - [ ] Sign: canvas draw and image upload both export valid PNG base64
@@ -1043,3 +1185,10 @@ States:
 - [ ] Verify: valid chain shows green "Document integrity verified" banner
 - [ ] Verify: tampered chain link shows red banner with specific signer highlighted
 - [ ] Verify: non-SignChain PDF shows "does not contain SignChain metadata" message
+- [ ] Library: cloud sync toggle visible only when authenticated
+- [ ] Library: toggling sync ON pushes library to cloud
+- [ ] Library: toggling sync OFF shows confirmation, deletes cloud data
+- [ ] Library: local mutations auto-push to cloud when sync enabled (debounced)
+- [ ] Library: new device with empty library + authenticated + cloud data → download prompt appears
+- [ ] Library: downloading from cloud restores signatures and text snippets locally
+- [ ] Library: network errors during sync are silently ignored (no crash, no toast)

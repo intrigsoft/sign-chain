@@ -18,7 +18,9 @@ The anchor payload contains the signer's identity and document metadata. It is s
     "n": "John Doe",
     "e": "john@example.com",
     "c": "Acme Corp",
-    "p": "CTO"
+    "p": "CTO",
+    "tr": "google",
+    "v": true
   },
   "ts": 1774288200,
   "g": {
@@ -40,11 +42,15 @@ The anchor payload contains the signer's identity and document metadata. It is s
 | Email | `s.e` | string | Yes | Signer's email address |
 | Company | `s.c` | string | No | Company name (omitted if empty) |
 | Position | `s.p` | string | No | Job title (omitted if empty) |
+| Trust anchor | `s.tr` | string | No | Auth provider: `"email"`, `"google"`, `"microsoft"` |
+| Verified | `s.v` | boolean | No | Whether identity was verified by the trust anchor |
 | Timestamp | `ts` | integer | Yes | Unix epoch seconds (UTC) |
 | Geolocation | `g` | object | No | GPS coordinates at signing time |
 | Latitude | `g.la` | number | If `g` present | Decimal degrees |
 | Longitude | `g.ln` | number | If `g` present | Decimal degrees |
 | Salt | `salt` | string | Yes | 32 random bytes, hex-encoded (64 chars) |
+
+The `tr` and `v` fields are populated from the signer's JWT claims. They allow verifiers to display a trust badge indicating how the signer authenticated (e.g. "Authenticated via Google").
 
 **Short keys** are used to minimize JSON size. The payload must fit within the QR byte budget after base64url encoding.
 

@@ -7,6 +7,7 @@ import { BlockchainModule } from '../blockchain/blockchain.module';
 import { RelayerModule } from '../relayer/relayer.module';
 import { VerifyModule } from '../verify/verify.module';
 import { AuthModule } from '../auth/auth.module';
+import { LibraryModule } from '../library/library.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
     RelayerModule,
     VerifyModule,
     AuthModule,
+    LibraryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

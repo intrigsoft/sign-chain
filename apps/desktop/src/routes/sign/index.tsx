@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TextFieldType, useSigningStore } from '../../store/signing';
+import { useLibraryStore } from '../../store/library';
 import { useSign } from '../../hooks/useSign';
 import SignatureManager from '../../components/SignatureManager';
 import SignaturePlacer from '../../components/SignaturePlacer';
@@ -27,10 +28,15 @@ export default function SignPage() {
     removeTextField,
   } = useSigningStore();
   const { signingStep, startSigning } = useSign();
+  const { textSnippets, loaded: libraryLoaded, load: loadLibrary } = useLibraryStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [placementMode, setPlacementMode] = useState<PlacementMode>('signature');
   const [pendingFieldType, setPendingFieldType] = useState<TextFieldType>('text');
   const [pendingFontSize, setPendingFontSize] = useState(12);
+
+  useEffect(() => {
+    if (!libraryLoaded) loadLibrary();
+  }, [libraryLoaded, loadLibrary]);
 
   if (signingStep !== 'idle' && signingStep !== 'error') {
     return <SigningProgress />;
@@ -118,60 +124,105 @@ export default function SignPage() {
         {/* Text field mode content */}
         {placementMode === 'textField' && (
           <div>
-            {/* Field type selector */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-700 block mb-1">
-                Field type
-              </label>
-              <div className="flex gap-2">
-                {(['text', 'date'] as TextFieldType[]).map((type) => (
+            {/* Saved text snippets */}
+            {textSnippets.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-gray-700 font-medium">
+                    Saved Snippets
+                  </label>
                   <button
-                    key={type}
-                    onClick={() => setPendingFieldType(type)}
-                    className={`flex-1 px-3 py-1.5 text-[13px] rounded-md border cursor-pointer capitalize ${
-                      pendingFieldType === type
-                        ? 'border-brand-600 bg-brand-50 text-brand-600'
-                        : 'border-gray-300 bg-white text-gray-700'
-                    }`}
+                    onClick={() => navigate('/library')}
+                    className="text-[11px] text-brand-700 bg-transparent border-none cursor-pointer hover:underline"
                   >
-                    {type}
+                    Manage
                   </button>
-                ))}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {textSnippets.map((sn) => (
+                    <div
+                      key={sn.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          'text/plain',
+                          `textSnippet:${sn.id}`,
+                        );
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      className="border border-brand-200 rounded-md px-3 py-2 cursor-grab bg-white hover:bg-brand-50 transition-colors"
+                    >
+                      <span className="text-[11px] text-gray-400 uppercase tracking-wide block">
+                        {sn.label}
+                      </span>
+                      <span className="text-[13px] text-gray-800">
+                        {sn.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Font size selector */}
-            <div className="mb-3">
-              <label className="text-xs text-gray-700 block mb-1">
-                Font size
+            <div className="border-t border-gray-200 pt-3 mt-1">
+              <label className="text-xs text-gray-700 font-medium block mb-2">
+                Custom Field
               </label>
-              <select
-                value={pendingFontSize}
-                onChange={(e) => setPendingFontSize(Number(e.target.value))}
-                className="w-full px-2 py-1.5 text-[13px] rounded-md border border-gray-300 bg-white"
-              >
-                {[10, 12, 14, 16, 18].map((size) => (
-                  <option key={size} value={size}>
-                    {size}pt
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Field type selector */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-700 block mb-1">
+                  Field type
+                </label>
+                <div className="flex gap-2">
+                  {(['text', 'date'] as TextFieldType[]).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setPendingFieldType(type)}
+                      className={`flex-1 px-3 py-1.5 text-[13px] rounded-md border cursor-pointer capitalize ${
+                        pendingFieldType === type
+                          ? 'border-brand-600 bg-brand-50 text-brand-600'
+                          : 'border-gray-300 bg-white text-gray-700'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            {/* Draggable text field */}
-            <div className="mt-2">
-              <p className="text-xs text-gray-500 mb-1.5">
-                Drag to place on PDF
-              </p>
-              <div
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', 'textField');
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                className="border-2 border-dashed border-brand-600 rounded-lg px-4 py-2.5 cursor-grab bg-brand-50 flex items-center justify-center text-[13px] text-brand-600 font-medium"
-              >
-                {pendingFieldType === 'date' ? 'Date Field' : 'Text Field'}
+              {/* Font size selector */}
+              <div className="mb-3">
+                <label className="text-xs text-gray-700 block mb-1">
+                  Font size
+                </label>
+                <select
+                  value={pendingFontSize}
+                  onChange={(e) => setPendingFontSize(Number(e.target.value))}
+                  className="w-full px-2 py-1.5 text-[13px] rounded-md border border-gray-300 bg-white"
+                >
+                  {[10, 12, 14, 16, 18].map((size) => (
+                    <option key={size} value={size}>
+                      {size}pt
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Draggable text field */}
+              <div className="mt-2">
+                <p className="text-xs text-gray-500 mb-1.5">
+                  Drag to place on PDF
+                </p>
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', 'textField');
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="border-2 border-dashed border-brand-600 rounded-lg px-4 py-2.5 cursor-grab bg-brand-50 flex items-center justify-center text-[13px] text-brand-600 font-medium"
+                >
+                  {pendingFieldType === 'date' ? 'Date Field' : 'Text Field'}
+                </div>
               </div>
             </div>
           </div>

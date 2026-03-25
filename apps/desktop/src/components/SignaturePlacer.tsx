@@ -12,6 +12,7 @@ import type {
   TextFieldPlacement,
   TextFieldType,
 } from '../store/signing';
+import { useLibraryStore } from '../store/library';
 import PdfPageCanvas from './PdfPageCanvas';
 
 interface SignaturePlacerProps {
@@ -305,6 +306,37 @@ export default function SignaturePlacer({
               : '',
           fontSize: pendingFontSize,
           fieldType: pendingFieldType,
+        };
+
+        onTextFieldAdded(newField);
+        selectTextField(newField.id);
+      } else if (dragType.startsWith('textSnippet:')) {
+        // Saved text snippet from library
+        const snippetId = dragType.slice('textSnippet:'.length);
+        const snippet = useLibraryStore.getState().textSnippets.find((s) => s.id === snippetId);
+        if (!snippet) return;
+
+        const fontSize = snippet.fontSize || pendingFontSize;
+        const defaultW = Math.max(200, snippet.text.length * fontSize * 0.6);
+        const defaultH = fontSize * 1.8;
+        const x = Math.max(0, e.clientX - rect.left - defaultW / 2);
+        const y = Math.max(0, e.clientY - rect.top - defaultH / 2);
+
+        const pdf = screenToPdf(
+          x, y, defaultW, defaultH,
+          pageInfo.pageNumber, pageInfo, scale,
+        );
+
+        const newField: TextFieldPlacement = {
+          id: crypto.randomUUID(),
+          pageNumber: pdf.pageNumber,
+          x: pdf.x,
+          y: pdf.y,
+          width: pdf.width,
+          height: pdf.height,
+          text: snippet.text,
+          fontSize,
+          fieldType: 'text',
         };
 
         onTextFieldAdded(newField);

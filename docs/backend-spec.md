@@ -21,172 +21,128 @@ The backend is a thin coordination layer. It is not the source of cryptographic 
 
 | Module | Responsibility |
 |--------|---------------|
-| `AuthModule` | Magic link issuance and TOTP verification |
-| `UsersModule` | Account creation and wallet address registration |
-| `DocumentsModule` | Document workflow state and signer queue management |
-| `RelayerModule` | EIP-2771 meta-transaction submission to Polygon |
-| `VerifyModule` | Public verification endpoint wrapping Polygon RPC |
-| `EmailModule` | Resend integration for magic links and signer invitations |
+| `AuthModule` | Magic link (6-digit code), Google OAuth, Microsoft OAuth, JWT issuance |
+| `PrismaModule` | Prisma client provider |
+| `RelayerModule` | Meta-transaction submission to blockchain |
+| `VerifyModule` | Public verification endpoint wrapping blockchain RPC |
+| `LibraryModule` | Cloud library sync — opt-in backup of saved signatures and text snippets |
 
 ---
 
 ## Authentication
 
-### Flow
+Three auth methods: magic link (email), Google OAuth, Microsoft OAuth. All implemented via Passport.js strategies in `apps/api/src/auth/`.
 
-**First login (account setup):**
-
-```
-1. Client POST /auth/magic-link        → backend sends magic link email
-2. Client POST /auth/magic-link/verify → validates token, returns TOTP setup payload
-3. Client POST /auth/totp/setup        → user scans QR, submits first TOTP code, returns JWT
-```
-
-**Subsequent logins:**
+### Magic Link Flow
 
 ```
-1. Client POST /auth/magic-link        → backend sends magic link email
-2. Client POST /auth/magic-link/verify → validates token, returns TOTP challenge
-3. Client POST /auth/totp/verify       → submits TOTP code, returns JWT
+1. Client POST /auth/magic-link        → backend sends 6-digit code via email
+2. Client POST /auth/magic-link/verify  → validates code, returns JWT
+```
+
+### OAuth Flow (Google / Microsoft)
+
+```
+1. Desktop app opens system browser → GET /auth/google (or /auth/microsoft)
+2. Passport redirects to provider's OAuth consent screen
+3. Provider redirects back → GET /auth/google/callback
+4. Backend upserts user, issues JWT
+5. Redirects to signchain://auth/callback?token=<jwt>
+6. Desktop captures deep link, stores JWT in OS keychain
 ```
 
 ### Auth Endpoints
 
 #### `POST /auth/magic-link`
 
-Request a magic link email.
+Send a 6-digit verification code to the given email.
 
 ```typescript
 // Request
-{ email: string }
+{ email: string }   // validated with @IsEmail()
 
-// Response 200
+// Response 201
 { message: "Magic link sent" }
 ```
 
 Behaviour:
-- Generates a secure random token (32 bytes, hex-encoded)
-- Stores hashed token in DB with 15-minute expiry
-- Sends email via Resend with link to desktop app deep link: `signchain://auth/verify?token=<token>`
-- Always returns 200 regardless of whether email exists (prevents enumeration)
+- Generates a random 6-digit numeric code
+- Stores in `MagicLink` table with 10-minute expiry
+- Sends email via nodemailer (SMTP)
+- Always returns 201 regardless of whether email exists (prevents enumeration)
 
 #### `POST /auth/magic-link/verify`
 
-Verify a magic link token.
+Verify a 6-digit code and receive a JWT.
 
 ```typescript
 // Request
-{ token: string }
-
-// Response 200 — TOTP not yet set up
-{ status: "totp_setup_required", totpSecret: string, totpUri: string }
-
-// Response 200 — TOTP already configured
-{ status: "totp_required" }
-
-// Response 401
-{ message: "Invalid or expired token" }
-```
-
-Behaviour:
-- Looks up and validates token (single use, invalidated immediately on use)
-- If `totpVerified = false`: generates TOTP secret, stores encrypted, returns setup payload
-- If `totpVerified = true`: returns challenge status only (no secret transmitted)
-
-#### `POST /auth/totp/setup`
-
-Complete TOTP setup on first login.
-
-```typescript
-// Request
-{ email: string, code: string }
+{ code: string }   // validated with @Length(6, 6)
 
 // Response 200
 { accessToken: string }
 
 // Response 401
-{ message: "Invalid TOTP code" }
+{ message: "Invalid or expired code" }
 ```
 
 Behaviour:
-- Validates TOTP code against stored secret
-- Sets `totpVerified = true`
-- Returns signed JWT (24-hour expiry)
+- Finds unexpired, unused MagicLink matching the code
+- Marks the code as used
+- Find-or-create User with `authProvider: "email"`
+- Issues and returns a signed JWT
 
-#### `POST /auth/totp/verify`
+#### `GET /auth/google`
 
-Verify TOTP code on subsequent logins.
+Initiates Google OAuth flow. Passport redirects to Google's consent screen.
+
+#### `GET /auth/google/callback`
+
+Handles Google's OAuth callback. Upserts user, issues JWT, redirects to `signchain://auth/callback?token=<jwt>`.
+
+#### `GET /auth/microsoft`
+
+Initiates Microsoft OAuth flow. Passport redirects to Microsoft's consent screen.
+
+#### `GET /auth/microsoft/callback`
+
+Handles Microsoft's OAuth callback. Same behaviour as Google callback.
+
+#### `GET /auth/me`
+
+Return current authenticated user.
 
 ```typescript
-// Request
-{ email: string, code: string }
+// Auth: Required (JWT)
+
+// Response 200
+{ id: string, email: string, name: string | null, authProvider: string }
+```
+
+#### `POST /auth/refresh`
+
+Re-issue JWT if the current token is valid.
+
+```typescript
+// Auth: Required (JWT)
 
 // Response 200
 { accessToken: string }
-
-// Response 401
-{ message: "Invalid TOTP code" }
 ```
 
 ### JWT
 
-- Signed with HS256, secret from environment variable
-- Payload: `{ sub: userId, email: string, iat: number, exp: number }`
+- Signed with HS256, secret from `JWT_SECRET` environment variable
+- Payload: `{ sub: userId, email: string, name: string, trust: authProvider, verified: true }`
 - Expiry: 24 hours
-- All protected endpoints validate JWT via `AuthGuard`
+- Protected endpoints validate JWT via `JwtAuthGuard` (Passport JWT strategy)
+- `trust` and `verified` claims flow into the signature payload automatically
 
 ---
 
 ## Users
 
-### User Endpoints
-
-#### `POST /users`
-
-Create a new user account. Called by the desktop app on first launch after TOTP setup.
-
-```typescript
-// Auth: Required (JWT)
-
-// Request
-{ walletAddress: string }
-
-// Response 201
-{ id: string, email: string, walletAddress: string, createdAt: string }
-
-// Response 409
-{ message: "User already exists" }
-```
-
-Behaviour:
-- Creates User record if not already exists
-- Associates the owner's Ethereum wallet address with the account
-- Wallet address is used as the `from` field in EIP-2771 meta-transactions
-
-#### `PATCH /users/me/wallet`
-
-Update wallet address (e.g. if keypair is regenerated).
-
-```typescript
-// Auth: Required (JWT)
-
-// Request
-{ walletAddress: string }
-
-// Response 200
-{ walletAddress: string }
-```
-
-#### `GET /users/me`
-
-Return current user profile.
-
-```typescript
-// Auth: Required (JWT)
-
-// Response 200
-{ id: string, email: string, walletAddress: string, anchorCount: number, createdAt: string }
-```
+Users are created automatically during authentication (find-or-create pattern). There are no separate user registration endpoints. The `GET /auth/me` endpoint serves as the user profile endpoint.
 
 ---
 
@@ -344,6 +300,61 @@ Behaviour:
 
 ---
 
+## Cloud Library (Opt-In Sync)
+
+The library module allows authenticated users to opt-in to syncing their saved signatures and text snippets to the cloud. This is entirely optional — data is never uploaded without explicit user consent.
+
+Storage uses base64 in Postgres TEXT columns (no S3 — signatures are typically 5-50 KB each). Sync strategy is push-on-change with last-write-wins conflict resolution via `updatedAt` timestamps.
+
+### Library Endpoints
+
+All library endpoints require JWT authentication (`JwtAuthGuard`).
+
+#### `GET /library`
+
+Return the user's cloud signatures and text snippets.
+
+```typescript
+// Response 200
+{
+  signatures: [{ id, label, base64Png, updatedAt, createdAt }],
+  textSnippets: [{ id, label, text, fontSize, updatedAt, createdAt }]
+}
+```
+
+#### `PUT /library/sync`
+
+Bulk upsert and delete in a single Prisma transaction.
+
+```typescript
+// Request
+{
+  signatures: [{ id, label, base64Png, updatedAt }],
+  textSnippets: [{ id, label, text, fontSize, updatedAt }],
+  deletedSignatureIds: string[],
+  deletedSnippetIds: string[]
+}
+
+// Response 200 — returns full updated library (same shape as GET /library)
+```
+
+Only updates items where client `updatedAt` > existing `updatedAt` (last-write-wins).
+
+#### `DELETE /library`
+
+Wipe all cloud library data for the user. Called when the user disables sync.
+
+#### `GET /library/exists`
+
+Check whether the user has any cloud library data. Used by the new-device prompt.
+
+```typescript
+// Response 200
+{ exists: boolean }
+```
+
+---
+
 ## Relayer
 
 The relayer submits EIP-2771 meta-transactions to Polygon on behalf of desktop signers. The desktop app signs the transaction locally (using the owner's keypair in the OS keychain) and sends the signed payload here. The backend hot wallet pays the gas and forwards the call to the `SignChain.sol` contract.
@@ -456,56 +467,70 @@ Behaviour:
 User
   id              uuid PK
   email           string unique
-  walletAddress   string nullable
-  totpSecret      string nullable  -- encrypted at rest (AES-256-GCM)
-  totpVerified    boolean default false
+  name            string nullable
+  authProvider    string default "email"    -- "email", "google", "microsoft"
+  providerId      string nullable           -- provider's unique user ID
+  walletAddress   string nullable unique
   anchorCount     integer default 0
   createdAt       timestamp
+  updatedAt       timestamp
 
-Document
-  id              uuid PK
-  ownerId         uuid FK → User
-  title           string
-  ownerTxHash     string           -- txHash from owner's anchor (first signer)
-  status          enum { in_progress, completed }
-  createdAt       timestamp
+  unique(authProvider, providerId)
 
-Signer
+Session
   id              uuid PK
-  documentId      uuid FK → Document
-  email           string
-  order           integer          -- 0 = owner, 1 = first invited signer, etc.
-  status          enum { pending, invited, signed }
-  txHash          string nullable
-  previousTxHash  string nullable
-  docHash         string nullable  -- hash signer reported; informational only
-  inviteToken     string nullable  -- stored as SHA-256 hash
-  tokenExpiry     timestamp nullable
-  signedAt        timestamp nullable
-
-MagicToken                         -- for auth magic links (separate from signer invite tokens)
-  id              uuid PK
-  userId          uuid FK → User nullable  -- null if email not yet registered
-  email           string
-  tokenHash       string           -- SHA-256 of raw token
+  userId          uuid FK → User (cascade delete)
+  token           string unique
   expiresAt       timestamp
-  usedAt          timestamp nullable
   createdAt       timestamp
+
+MagicLink
+  id              uuid PK
+  email           string
+  code            string unique             -- 6-digit numeric code
+  expiresAt       timestamp
+  used            boolean default false
+  createdAt       timestamp
+
+Anchor
+  id              uuid PK
+  txHash          string unique
+  compositeHash   string
+  encryptedPayload string
+  userId          uuid FK → User nullable
+  createdAt       timestamp
+
+CloudSignature
+  id              uuid PK (client-generated)
+  userId          uuid FK → User (cascade delete)
+  label           string
+  base64Png       text          -- base64-encoded PNG (typically 5-50 KB)
+  updatedAt       timestamp
+  createdAt       timestamp
+  index(userId)
+
+CloudTextSnippet
+  id              uuid PK (client-generated)
+  userId          uuid FK → User (cascade delete)
+  label           string
+  text            string
+  fontSize        float
+  updatedAt       timestamp
+  createdAt       timestamp
+  index(userId)
 ```
 
 ---
 
-## Email Templates
+## Email
 
-All emails sent via Resend.
+Emails sent via nodemailer (SMTP). For local development, use Mailpit (port 1025).
 
 | Trigger | Template | Recipients |
 |---------|----------|------------|
-| `POST /auth/magic-link` | Login magic link | Requesting user |
-| `POST /documents/:id/invite` | Signing invitation | Next pending signer |
-| Document completed | Completion notification | Document owner |
+| `POST /auth/magic-link` | 6-digit verification code | Requesting user |
 
-Email content is minimal — no HTML branding in PoC. Plain text with relevant links.
+The magic link email contains an HTML template with the 6-digit code and a 10-minute expiry notice. Additional email templates (signer invitations, completion notifications) will be added as those features are built.
 
 ---
 
@@ -524,30 +549,33 @@ Global exception filter catches unhandled errors and returns 500 with a generic 
 ## Environment Variables
 
 ```
-# App
-PORT                        NestJS listen port (default 3000)
-NODE_ENV                    development | production
-
-# Auth
-JWT_SECRET                  HS256 signing secret (min 32 chars)
-MAGIC_LINK_BASE_URL         Base URL for desktop deep links (signchain://)
-
 # Database
 DATABASE_URL                Prisma PostgreSQL connection string
 
-# Email
-RESEND_API_KEY              Resend API key
-EMAIL_FROM                  Sender address (e.g. noreply@signchain.io)
-
-# Relayer
+# Blockchain
+RPC_URL                     JSON-RPC endpoint (e.g. http://127.0.0.1:8545 for local)
 RELAYER_PRIVATE_KEY         Hot wallet private key
-RELAYER_RPC_URL             Alchemy Polygon Amoy RPC URL
-SIGNCHAIN_CONTRACT_ADDRESS  Deployed contract address
-FORWARDER_CONTRACT_ADDRESS  EIP-2771 forwarder address
-RELAYER_MIN_BALANCE_MATIC   Minimum MATIC balance before rejecting relay requests
+SIGNCHAIN_CONTRACT_ADDRESS  Deployed SignChain.sol address
+FORWARDER_CONTRACT_ADDRESS  Deployed EIP-2771 forwarder address
 
-# Encryption
-TOTP_ENCRYPTION_KEY         AES-256-GCM key for encrypting TOTP secrets at rest
+# Quota
+ANCHOR_QUOTA                Max anchors per user (default 50)
+
+# Auth
+JWT_SECRET                  HS256 signing secret
+GOOGLE_CLIENT_ID            Google OAuth client ID (empty = disabled)
+GOOGLE_CLIENT_SECRET        Google OAuth client secret
+GOOGLE_CALLBACK_URL         Google OAuth redirect URI
+MICROSOFT_CLIENT_ID         Microsoft OAuth client ID (empty = disabled)
+MICROSOFT_CLIENT_SECRET     Microsoft OAuth client secret
+MICROSOFT_CALLBACK_URL      Microsoft OAuth redirect URI
+
+# Mail (SMTP)
+SMTP_HOST                   SMTP server host
+SMTP_PORT                   SMTP port (1025 for local Mailpit)
+SMTP_USER                   SMTP username
+SMTP_PASS                   SMTP password
+MAIL_FROM                   Sender email address
 ```
 
 ---

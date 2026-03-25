@@ -8,13 +8,6 @@ export interface UserIdentity {
   position?: string;
 }
 
-export interface SavedSignature {
-  id: string;
-  base64: string;
-  label: string;
-  createdAt: number;
-}
-
 export interface SignaturePlacement {
   pageNumber: number;
   x: number;
@@ -50,7 +43,6 @@ export type SigningStep =
 interface SigningState {
   userIdentity: UserIdentity | null;
   geoCoords: { lat: number; lon: number } | null;
-  savedSignatures: SavedSignature[];
   filePath: string | null;
   fileName: string | null;
   pageCount: number;
@@ -64,8 +56,6 @@ interface SigningState {
 
   setUserIdentity: (identity: UserIdentity) => void;
   setGeoCoords: (coords: { lat: number; lon: number } | null) => void;
-  addSavedSignature: (base64: string, label: string) => void;
-  removeSavedSignature: (id: string) => void;
   setFile: (path: string, name: string, pageCount: number) => void;
   setSignature: (base64: string) => void;
   addSignaturePlacement: (placement: SignaturePlacement) => void;
@@ -98,25 +88,11 @@ const sessionInitialState = {
 export const useSigningStore = create<SigningState>((set) => ({
   userIdentity: null,
   geoCoords: null,
-  savedSignatures: [],
   openedFile: null,
   ...sessionInitialState,
 
   setUserIdentity: (identity) => set({ userIdentity: identity }),
   setGeoCoords: (coords) => set({ geoCoords: coords }),
-
-  addSavedSignature: (base64, label) =>
-    set((state) => ({
-      savedSignatures: [
-        ...state.savedSignatures,
-        { id: crypto.randomUUID(), base64, label, createdAt: Date.now() },
-      ],
-    })),
-
-  removeSavedSignature: (id) =>
-    set((state) => ({
-      savedSignatures: state.savedSignatures.filter((s) => s.id !== id),
-    })),
 
   setFile: (path, name, pageCount) =>
     set({ filePath: path, fileName: name, pageCount }),

@@ -18,8 +18,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions      Session[]
-  anchors       Anchor[]
+  sessions          Session[]
+  anchors           Anchor[]
+  cloudSignatures   CloudSignature[]
+  cloudTextSnippets CloudTextSnippet[]
 
   @@unique([authProvider, providerId])
 }
@@ -50,4 +52,27 @@ model Anchor {
   userId            String?
   user              User?    @relation(fields: [userId], references: [id])
   createdAt         DateTime @default(now())
+}
+
+model CloudSignature {
+  id        String   @id
+  userId    String
+  label     String
+  base64Png String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model CloudTextSnippet {
+  id        String   @id
+  userId    String
+  label     String
+  text      String
+  fontSize  Float
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }

@@ -1,11 +1,13 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { useSigningStore } from '../store/signing';
 
 const appWindow = getCurrentWindow();
 
 export default function TitleBar() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const reset = useSigningStore((s) => s.reset);
@@ -31,6 +33,12 @@ export default function TitleBar() {
       <div className="flex items-center h-full">
         {user && (
           <>
+            <button
+              onClick={() => navigate('/library')}
+              className="px-3 h-full border-none bg-transparent text-white/70 text-xs cursor-pointer hover:text-white hover:bg-white/10"
+            >
+              My Library
+            </button>
             <span className="text-xs text-white/70 mr-2 truncate max-w-[200px]">
               {user.email}
             </span>

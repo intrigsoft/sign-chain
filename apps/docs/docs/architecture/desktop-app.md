@@ -20,11 +20,13 @@ The React frontend handles user interaction -- file selection, signature placeme
 
 ```
 src-tauri/src/
-├── lib.rs              App entry, plugin registration, file associations
-├── state.rs            AppState (API base URL, HTTP client)
+├── lib.rs              App entry, plugin registration, deep link handling
+├── state.rs            AppState (API base URL, HTTP client, JWT)
 ├── anchor.rs           RelayRequest/Response types, API communication
 ├── payload.rs          Payload construction, AES-128-GCM encryption, QR URL building
 ├── commands/
+│   ├── auth.rs         Keychain JWT/profile storage, open_auth_browser
+│   ├── library.rs      Persistent signature & text snippet storage
 │   ├── pdf.rs          Tauri commands: sign, verify, save, extract revision
 │   └── documents.rs    Document listing
 └── pdf/
@@ -37,6 +39,21 @@ src-tauri/src/
 
 | Command | Description |
 |---|---|
+| `open_auth_browser` | Opens auth provider URL in system browser |
+| `get_stored_jwt` | Reads JWT from OS keychain |
+| `store_jwt` | Saves JWT to OS keychain |
+| `clear_stored_jwt` | Removes JWT and profile from keychain |
+| `store_profile` | Saves signer profile JSON to keychain |
+| `get_stored_profile` | Reads signer profile from keychain |
+| `load_library` | Loads all saved signatures and text snippets metadata |
+| `save_library_signature` | Saves a signature PNG to app data directory |
+| `delete_library_signature` | Deletes a saved signature |
+| `load_library_signature` | Loads a signature PNG as base64 |
+| `update_library_signature_label` | Renames a saved signature |
+| `save_text_snippet` | Saves a reusable text snippet |
+| `delete_text_snippet` | Deletes a saved text snippet |
+| `get_sync_enabled` | Returns whether cloud sync is enabled |
+| `set_sync_enabled` | Persists cloud sync preference |
 | `open_pdf_picker` | Opens OS file dialog, returns selected path |
 | `get_pdf_page_count` | Returns page count for a PDF |
 | `sign_document` | Full signing pipeline (embed, hash, encrypt, anchor, QR) |
@@ -60,13 +77,24 @@ The signing pipeline uses **lopdf** for PDF manipulation:
 
 ### State Management
 
-The app uses **Zustand** for state management with a single `useSigningStore`:
+The app uses **Zustand** for state management with two stores:
 
-- User identity and saved signatures
+**`useAuthStore`** -- Authentication state:
+- JWT token and decoded user claims (email, name, trust anchor, verified)
+- Loaded from OS keychain on startup via `useAuthInit` hook
+
+**`useSigningStore`** -- Signing session state:
+- User identity (name, email, company, position)
 - Current file path, page count
 - Signature and text field placements
 - Signing progress (idle -> preparing -> embedding -> hashing -> anchoring -> finalising -> done)
 - Signed PDF path
+
+**`useLibraryStore`** -- Persistent reusable assets:
+- Saved signatures (PNG images stored in app data directory)
+- Saved text snippets (name, address, company, etc.) with label, text, and font size
+- Loaded from disk on startup, persists across sessions
+- **Cloud sync** (opt-in): when enabled, local mutations are debounced and pushed to the API. On new devices, a `CloudLibraryPrompt` modal offers to download existing cloud library data
 
 ### Routing
 
@@ -74,12 +102,15 @@ Uses **React Router** with `MemoryRouter` (no browser URL bar in Tauri):
 
 | Route | Page |
 |---|---|
-| `/` | Identity setup |
-| `/dashboard` | Document list |
+| `/identity` | Authentication (magic link / OAuth) + profile setup |
+| `/dashboard` | Document list (requires auth) |
 | `/upload` | File picker |
 | `/sign` | Signature placement + signing |
 | `/verify` | Document verification |
 | `/document/:id` | Document details |
+| `/library` | Manage saved signatures and text snippets |
+
+A `RequireAuth` route guard redirects unauthenticated users to `/identity`. Authentication requires both a valid JWT and a completed signer profile.
 
 ### PDF Rendering
 

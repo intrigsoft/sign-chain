@@ -12,6 +12,7 @@ import UploadPage from '../routes/upload';
 import SignPage from '../routes/sign';
 import DocumentPage from '../routes/document';
 import VerifyPage from '../routes/verify';
+import LibraryPage from '../routes/library';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,14 @@ export function App() {
               element={
                 <RequireAuth>
                   <VerifyPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <RequireAuth>
+                  <LibraryPage />
                 </RequireAuth>
               }
             />

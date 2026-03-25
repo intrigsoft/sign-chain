@@ -35,6 +35,15 @@ pub fn run() {
             commands::auth::clear_stored_jwt,
             commands::auth::store_profile,
             commands::auth::get_stored_profile,
+            commands::library::save_library_signature,
+            commands::library::delete_library_signature,
+            commands::library::load_library_signature,
+            commands::library::load_library,
+            commands::library::save_text_snippet,
+            commands::library::delete_text_snippet,
+            commands::library::update_library_signature_label,
+            commands::library::get_sync_enabled,
+            commands::library::set_sync_enabled,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
