@@ -30,6 +30,13 @@
       }
     }
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["signchain"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

@@ -39,3 +39,6 @@ flate2 = "1"
 rand = "0.8"
 base64ct = { version = "1", features = ["alloc"] }
 aes-gcm = "0.10"
+keyring = "3"
+tauri-plugin-deep-link = "2"
+url = "2"

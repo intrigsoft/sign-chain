@@ -25,6 +25,8 @@ interface SignerPayload {
     e: string; // email
     c?: string; // company
     p?: string; // position
+    tr?: string; // trust anchor
+    v?: boolean; // verified
   };
   ts: number; // unix timestamp
   g?: { la: number; ln: number }; // geo
@@ -174,6 +176,7 @@ function VerifiedView({
       <DetailRow label="Type" value={signerType} />
       {payload.s.c && <DetailRow label="Company" value={payload.s.c} />}
       {payload.s.p && <DetailRow label="Position" value={payload.s.p} />}
+      {payload.s.tr && <TrustBadge trust={payload.s.tr} />}
 
       <SectionTitle>Document</SectionTitle>
       <DetailRow label="Document Hash" value={payload.d} mono truncate />
@@ -192,6 +195,32 @@ function VerifiedView({
       <DetailRow label="Transaction" value={result.txHash} mono truncate />
       <DetailRow label="Composite Hash" value={result.compositeHash} mono truncate />
       <DetailRow label="Chain Length" value={`${result.chain.length} signature(s)`} />
+    </div>
+  );
+}
+
+function TrustBadge({ trust }: { trust: string }) {
+  const labels: Record<string, { label: string; bg: string; color: string }> = {
+    google: { label: 'Authenticated via Google', bg: '#fefce8', color: '#ca8a04' },
+    microsoft: { label: 'Authenticated via Microsoft', bg: '#fefce8', color: '#ca8a04' },
+    email: { label: 'Email verified via magic link', bg: '#f3f4f6', color: '#6b7280' },
+  };
+  const info = labels[trust] || { label: `Auth: ${trust}`, bg: '#f3f4f6', color: '#6b7280' };
+
+  return (
+    <div
+      style={{
+        display: 'inline-block',
+        padding: '4px 12px',
+        background: info.bg,
+        color: info.color,
+        borderRadius: 12,
+        fontSize: 12,
+        fontWeight: 600,
+        marginTop: 8,
+      }}
+    >
+      {info.label}
     </div>
   );
 }

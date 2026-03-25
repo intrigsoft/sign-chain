@@ -77,6 +77,9 @@ cp apps/api/.env.example "$API_ENV"
 sed -i "s|^SIGNCHAIN_CONTRACT_ADDRESS=.*|SIGNCHAIN_CONTRACT_ADDRESS=${SIGNCHAIN_CONTRACT_ADDRESS}|" "$API_ENV"
 sed -i "s|^FORWARDER_CONTRACT_ADDRESS=.*|FORWARDER_CONTRACT_ADDRESS=${FORWARDER_CONTRACT_ADDRESS}|" "$API_ENV"
 sed -i "s|^RELAYER_PRIVATE_KEY=.*|RELAYER_PRIVATE_KEY=${RELAYER_PRIVATE_KEY}|" "$API_ENV"
+# Auth defaults for local dev
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=\"dev-jwt-secret-change-in-production\"|" "$API_ENV"
+sed -i "s|^SMTP_PORT=.*|SMTP_PORT=1025|" "$API_ENV"
 green "Wrote contract addresses to $API_ENV"
 
 # ── 7. Prisma generate + migrate + seed ───────────────

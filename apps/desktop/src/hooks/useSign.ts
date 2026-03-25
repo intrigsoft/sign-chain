@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { signDocument, TauriTextFieldPlacement } from '../lib/tauri';
 import { SigningStep, useSigningStore } from '../store/signing';
+import { useAuthStore } from '../store/auth';
 
 const STATUS_MAP: Record<string, SigningStep> = {
   preparing: 'preparing',
@@ -26,6 +27,8 @@ export function useSign() {
     setError,
     setGeoCoords,
   } = useSigningStore();
+
+  const authUser = useAuthStore((s) => s.user);
 
   // Request geolocation on mount
   useEffect(() => {
@@ -75,6 +78,8 @@ export function useSign() {
         userIdentity.position,
         geoCoords?.lat,
         geoCoords?.lon,
+        authUser?.trust,
+        authUser?.verified,
         signaturePlacements,
         textFieldsForRust
       );

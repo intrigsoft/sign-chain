@@ -63,6 +63,7 @@ export class RelayerService {
         txHash: receipt.hash,
         compositeHash: dto.compositeHash,
         encryptedPayload: dto.encryptedPayload,
+        userId,
       },
     });
 

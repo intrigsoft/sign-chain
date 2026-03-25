@@ -69,6 +69,8 @@ pub async fn sign_document(
     signer_position: Option<String>,
     geo_lat: Option<f64>,
     geo_lon: Option<f64>,
+    trust: Option<String>,
+    verified: Option<bool>,
     placements: Vec<SignaturePlacement>,
     text_fields: Vec<TextFieldPlacement>,
 ) -> Result<String, String> {
@@ -123,6 +125,8 @@ pub async fn sign_document(
         email: signer_email.clone(),
         company: signer_company.clone(),
         position: signer_position.clone(),
+        trust: trust.clone(),
+        verified,
     };
 
     let geo = match (geo_lat, geo_lon) {

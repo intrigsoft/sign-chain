@@ -8,12 +8,38 @@ datasource db {
 }
 
 model User {
-  id            String @id @default(uuid())
-  email         String @unique
-  walletAddress String @unique
-  anchorCount   Int    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  authProvider  String    @default("email")   // "email", "google", "microsoft"
+  providerId    String?                       // provider's unique user ID
+  walletAddress String?   @unique
+  anchorCount   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  anchors       Anchor[]
+
+  @@unique([authProvider, providerId])
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MagicLink {
+  id        String   @id @default(uuid())
+  email     String
+  code      String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Anchor {
@@ -21,5 +47,7 @@ model Anchor {
   txHash            String   @unique
   compositeHash     String
   encryptedPayload  String
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id])
   createdAt         DateTime @default(now())
 }

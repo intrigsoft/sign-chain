@@ -20,6 +20,10 @@ pub struct SignerInfo {
     pub company: Option<String>,
     #[serde(rename = "p", skip_serializing_if = "Option::is_none")]
     pub position: Option<String>,
+    #[serde(rename = "tr", skip_serializing_if = "Option::is_none")]
+    pub trust: Option<String>,
+    #[serde(rename = "v", skip_serializing_if = "Option::is_none")]
+    pub verified: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

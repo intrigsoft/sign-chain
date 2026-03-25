@@ -37,6 +37,8 @@ export async function signDocument(
   signerPosition: string | undefined,
   geoLat: number | undefined,
   geoLon: number | undefined,
+  trust: string | undefined,
+  verified: boolean | undefined,
   placements: SignaturePlacement[],
   textFields: TauriTextFieldPlacement[]
 ): Promise<string> {
@@ -50,6 +52,8 @@ export async function signDocument(
     signerPosition: signerPosition ?? null,
     geoLat: geoLat ?? null,
     geoLon: geoLon ?? null,
+    trust: trust ?? null,
+    verified: verified ?? null,
     placements,
     textFields,
   });

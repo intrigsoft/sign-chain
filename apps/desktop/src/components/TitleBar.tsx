@@ -1,8 +1,21 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
+import { useAuthStore } from '../store/auth';
+import { useSigningStore } from '../store/signing';
 
 const appWindow = getCurrentWindow();
 
 export default function TitleBar() {
+  const user = useAuthStore((s) => s.user);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const reset = useSigningStore((s) => s.reset);
+
+  const handleSignOut = async () => {
+    await invoke('clear_stored_jwt').catch(() => {});
+    clearAuth();
+    reset();
+  };
+
   return (
     <div
       data-tauri-drag-region
@@ -15,7 +28,20 @@ export default function TitleBar() {
         className="h-[18px] pl-3.5 brightness-0 invert"
       />
 
-      <div className="flex h-full">
+      <div className="flex items-center h-full">
+        {user && (
+          <>
+            <span className="text-xs text-white/70 mr-2 truncate max-w-[200px]">
+              {user.email}
+            </span>
+            <button
+              onClick={handleSignOut}
+              className="px-3 h-full border-none bg-transparent text-white/70 text-xs cursor-pointer hover:text-white hover:bg-white/10"
+            >
+              Sign out
+            </button>
+          </>
+        )}
         <button
           onClick={() => appWindow.minimize()}
           className="w-[46px] h-full border-none bg-transparent text-white text-sm cursor-pointer flex items-center justify-center"
