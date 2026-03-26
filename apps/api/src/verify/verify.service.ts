@@ -73,7 +73,15 @@ export class VerifyService {
       throw new NotFoundException(`Transaction ${txHash} not found`);
     }
 
+    const contractAddress =
+      await this.blockchain.signChainContract.getAddress();
+
     for (const log of receipt.logs) {
+      // Only accept events from the official SignChain contract
+      if (log.address.toLowerCase() !== contractAddress.toLowerCase()) {
+        continue;
+      }
+
       try {
         const parsed = this.eventFragment.parseLog({
           topics: log.topics as string[],

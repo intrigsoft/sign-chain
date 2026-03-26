@@ -13,12 +13,14 @@ async function main() {
   const forwarderAddress = await forwarder.getAddress();
   console.log('Forwarder deployed to:', forwarderAddress);
 
-  // Deploy SignChain
+  // Deploy SignChain with deployer as trusted relayer (override via RELAYER_ADDRESS env var)
+  const relayerAddress = process.env.RELAYER_ADDRESS || deployer.address;
   const SignChain = await ethers.getContractFactory('SignChain');
-  const signChain = await SignChain.deploy(forwarderAddress);
+  const signChain = await SignChain.deploy(forwarderAddress, relayerAddress);
   await signChain.waitForDeployment();
   const signChainAddress = await signChain.getAddress();
   console.log('SignChain deployed to:', signChainAddress);
+  console.log('Trusted relayer:', relayerAddress);
 
   // Write addresses to .env.local
   const envContent = [

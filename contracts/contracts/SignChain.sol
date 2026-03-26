@@ -11,12 +11,28 @@ contract SignChain is ERC2771Context {
         uint256 timestamp
     );
 
-    constructor(address trustedForwarder) ERC2771Context(trustedForwarder) {}
+    address public immutable trustedRelayer;
+
+    error UnauthorizedRelayer(address caller);
+
+    modifier onlyRelayer() {
+        if (msg.sender != trustedRelayer) {
+            revert UnauthorizedRelayer(msg.sender);
+        }
+        _;
+    }
+
+    constructor(
+        address trustedForwarder,
+        address _trustedRelayer
+    ) ERC2771Context(trustedForwarder) {
+        trustedRelayer = _trustedRelayer;
+    }
 
     function anchorDocument(
         bytes32 compositeHash,
         bytes32 previousTxHash
-    ) external {
+    ) external onlyRelayer {
         emit DocumentAnchored(
             compositeHash,
             _msgSender(),

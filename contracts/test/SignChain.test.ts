@@ -7,12 +7,17 @@ describe('SignChain', function () {
   let forwarder: Forwarder;
 
   beforeEach(async function () {
+    const [relayer] = await ethers.getSigners();
+
     const ForwarderFactory = await ethers.getContractFactory('Forwarder');
     forwarder = await ForwarderFactory.deploy('SignChainForwarder');
     await forwarder.waitForDeployment();
 
     const SignChainFactory = await ethers.getContractFactory('SignChain');
-    signChain = await SignChainFactory.deploy(await forwarder.getAddress());
+    signChain = await SignChainFactory.deploy(
+      await forwarder.getAddress(),
+      relayer.address
+    );
     await signChain.waitForDeployment();
   });
 
@@ -43,14 +48,17 @@ describe('SignChain', function () {
     expect(events[0].args.previousTxHash).to.equal(receipt1!.hash);
   });
 
-  it('should record correct signer address', async function () {
-    const [, otherSigner] = await ethers.getSigners();
-    const compositeHash = ethers.keccak256(ethers.toUtf8Bytes('other-doc'));
+  it('should store the trusted relayer address', async function () {
+    const [relayer] = await ethers.getSigners();
+    expect(await signChain.trustedRelayer()).to.equal(relayer.address);
+  });
+
+  it('should reject calls from non-relayer addresses', async function () {
+    const [, unauthorized] = await ethers.getSigners();
+    const compositeHash = ethers.keccak256(ethers.toUtf8Bytes('fake-doc'));
 
     await expect(
-      signChain.connect(otherSigner).anchorDocument(compositeHash, ethers.ZeroHash)
-    )
-      .to.emit(signChain, 'DocumentAnchored')
-      .withArgs(compositeHash, otherSigner.address, ethers.ZeroHash, (ts: bigint) => ts > 0n);
+      signChain.connect(unauthorized).anchorDocument(compositeHash, ethers.ZeroHash)
+    ).to.be.revertedWithCustomError(signChain, 'UnauthorizedRelayer');
   });
 });
