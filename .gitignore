@@ -62,3 +62,17 @@ apps/api/prisma/migrations/
 
 # Docker
 pgdata/
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+cache/
+apps/verify/ios/
+apps/verify/android/
+

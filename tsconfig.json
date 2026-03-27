@@ -17,6 +17,12 @@
     },
     {
       "path": "./libs/shared/types"
+    },
+    {
+      "path": "./libs/shared/crypto"
+    },
+    {
+      "path": "./apps/verify"
     }
   ]
 }

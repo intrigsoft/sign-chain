@@ -1,37 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { base64urlDecode, toHex, decryptPayload } from './crypto';
+import type { AnchorEntry, VerifyApiResult, SignerPayload } from '@sign-chain/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://192.168.8.100:3000/api';
-
-interface AnchorEntry {
-  txHash: string;
-  compositeHash: string;
-  signer: string;
-  timestamp: number;
-  previousTxHash: string;
-}
-
-interface VerifyApiResult extends AnchorEntry {
-  chain: AnchorEntry[];
-  encryptedPayload?: string;
-}
-
-interface SignerPayload {
-  d: string; // doc hash
-  s: {
-    t: string; // signer type
-    n: string; // name
-    e: string; // email
-    c?: string; // company
-    p?: string; // position
-    tr?: string; // trust anchor
-    v?: boolean; // verified
-  };
-  ts: number; // unix timestamp
-  g?: { la: number; ln: number }; // geo
-  salt: string;
-}
 
 type Status = 'loading' | 'verified' | 'no-key' | 'error';
 
@@ -91,6 +63,7 @@ export default function VerifyPage() {
 
   return (
     <div style={container}>
+      <AppNudgeBanner />
       <div style={card}>
         <img src="/logo.png" alt="SignChain" style={{ height: 36, marginBottom: 4 }} />
         <p style={{ color: '#666', fontSize: 13, marginBottom: 24 }}>
@@ -224,6 +197,60 @@ function TrustBadge({ trust }: { trust: string }) {
     </div>
   );
 }
+
+// ── App Nudge Banner ────────────────────────────────────────────────────
+
+function AppNudgeBanner() {
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem('nudge-dismissed') === '1',
+  );
+
+  if (dismissed) return null;
+
+  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+  if (!isMobile) return null;
+
+  return (
+    <div style={nudgeBanner}>
+      <p style={{ margin: 0, fontSize: 13, color: '#374151', flex: 1 }}>
+        For secure verification, use the{' '}
+        <strong>SignChain Verify</strong> app
+      </p>
+      <button
+        onClick={() => {
+          sessionStorage.setItem('nudge-dismissed', '1');
+          setDismissed(true);
+        }}
+        style={nudgeDismiss}
+        aria-label="Dismiss"
+      >
+        &times;
+      </button>
+    </div>
+  );
+}
+
+const nudgeBanner: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  background: '#f3e8ff',
+  border: '1px solid #d8b4fe',
+  borderRadius: 10,
+  padding: '10px 14px',
+  maxWidth: 480,
+  width: '100%',
+  marginBottom: 12,
+};
+
+const nudgeDismiss: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  fontSize: 18,
+  color: '#6b7280',
+  cursor: 'pointer',
+  padding: '0 4px',
+};
 
 // ── UI Helpers ──────────────────────────────────────────────────────────
 
