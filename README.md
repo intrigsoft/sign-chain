@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="docs/logo.png" alt="SignChain" height="48" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.png" />
+    <source media="(prefers-color-scheme: light)" srcset="docs/logo.png" />
+    <img src="docs/logo.png" alt="SignChain" height="48" />
+  </picture>
 </p>
 
 <h3 align="center">Blockchain-anchored document signing</h3>
