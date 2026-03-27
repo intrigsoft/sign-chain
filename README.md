@@ -1,105 +1,143 @@
-# New Nx Repository
+<p align="center">
+  <img src="docs/logo.png" alt="SignChain" height="48" />
+</p>
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+<h3 align="center">Blockchain-anchored document signing</h3>
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+<p align="center">
+  Sign PDFs locally. Anchor proof on-chain. Verify with a QR scan.
+</p>
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-## Try the full Nx platform
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/setup/connect-workspace/guide). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-## Generate a library
+<p align="center">
+  <a href="https://intrigsoft.github.io/sign-chain/">Documentation</a>
+</p>
+
+---
+
+## What is SignChain?
+
+SignChain is a document signing platform that anchors every signature on a blockchain, providing tamper-evident proof that a specific person signed a specific document at a specific time.
+
+Traditional digital signatures rely on certificate authorities and PKI infrastructure. If a CA is compromised, revoked, or ceases to exist, the trust chain breaks. SignChain takes a different approach:
+
+- **Blockchain anchoring** -- an immutable, publicly verifiable record of every signature
+- **Client-side hashing** -- PDF bytes never leave the signer's machine
+- **Encrypted metadata** -- signer identity is encrypted; only the QR holder can decrypt
+- **QR verification** -- anyone can scan the embedded QR code to verify against the on-chain record
+
+## How It Works
+
+1. **Sign** -- Open a PDF in the desktop app, place your signature, confirm
+2. **Hash** -- The app computes a cryptographic hash of the signed document locally
+3. **Anchor** -- The hash is recorded on-chain via a smart contract
+4. **Embed** -- A QR code with the verification URL is embedded into the PDF
+5. **Verify** -- Scan the QR code to verify the signature against the blockchain record
+
+## Architecture
+
+```
+ Desktop App           API Server           Blockchain
+ (Tauri + React)       (NestJS)             (Polygon)
+ ┌────────────┐       ┌────────────┐       ┌────────────┐
+ │ PDF ops    │       │ Relay tx   │       │ SignChain  │
+ │ Hashing    │──────>│ Auth       │──────>│ contract   │
+ │ QR embed   │       │ Workflow   │       │ (events)   │
+ └────────────┘       └────────────┘       └────────────┘
+                                                  │
+                      ┌────────────┐              │
+                      │ Verify     │<─────────────┘
+                      │ (Web/Mobile)│
+                      └────────────┘
+```
+
+| Component | Tech | Purpose |
+|---|---|---|
+| **Desktop App** | Tauri 2 (Rust) + React 19 | Signing interface. All PDF operations run locally in Rust. |
+| **API Server** | NestJS + Prisma + PostgreSQL | Coordinates signing workflow, relays transactions to blockchain. |
+| **Smart Contract** | Solidity (OpenZeppelin ERC2771) | On-chain anchor registry. Immutable event log, no stored state. |
+| **Verification Web** | React + Vite | Lightweight page opened by QR scan. Queries blockchain directly. |
+| **Verification App** | Expo (React Native) | Mobile app for QR-based verification. Hardcoded API endpoint. |
+| **Documentation** | Docusaurus | Architecture, trust model, and flow documentation. |
+
+## Repository Structure
+
+```
+apps/
+  desktop/          Tauri 2 desktop app (Rust + React)
+  api/              NestJS backend
+  web/              Verification web page
+  verify/           Expo mobile verification app
+  docs/             Docusaurus documentation site
+libs/shared/
+  crypto/           Shared cryptographic utilities
+  types/            Shared TypeScript interfaces
+  ui/               Shared UI components
+contracts/          Solidity smart contracts (Hardhat)
+docs/               Specifications and diagrams
+```
+
+This is an [Nx](https://nx.dev) monorepo. All tasks are run through Nx:
 
 ```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
+npx nx build desktop        # Build the desktop app
+npx nx serve api            # Start the API server
+npx nx build web            # Build the verification page
+npx nx start verify         # Start the mobile app (Expo)
+npx nx build docs           # Build the documentation site
 ```
 
-## Run tasks
+## Prerequisites
 
-To build the library use:
+- **Node.js** >= 20.17
+- **Rust** (stable) -- for the Tauri desktop app
+- **PostgreSQL** -- for the API server
+- A **Polygon RPC endpoint** -- for blockchain interaction
+
+## Getting Started
 
 ```sh
-npx nx build pkg1
+# Install dependencies
+npm install
+
+# Start the API server
+npx nx serve api
+
+# Start the desktop app (dev mode)
+npx nx serve desktop
+
+# Deploy contracts to local Hardhat network
+cd contracts && npx hardhat node &
+npx hardhat run scripts/deploy.ts --network localhost
 ```
 
-To run any task with Nx use:
+See the [documentation](https://intrigsoft.github.io/sign-chain/) for detailed setup and architecture guides.
 
-```sh
-npx nx <target> <project-name>
-```
+## Key Design Decisions
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+- **PDF bytes never leave the machine.** Rust handles all PDF operations; the React layer is UI only.
+- **No stored state on-chain.** The smart contract emits events only -- no storage writes, ~25k gas per anchor.
+- **Relayer pattern.** The API submits meta-transactions on behalf of users, so signers don't need a wallet or ETH.
+- **Contract address pinning.** The verification API only accepts events from the official contract address, preventing copycat deployments.
+- **Offline resilient.** If the backend is unreachable, the desktop app continues to function locally.
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Trust Model
 
-## Versioning and releasing
+SignChain's trust model is anchored in three properties:
 
-To version and release the library use
+| Property | Guarantee |
+|---|---|
+| **Tamper evidence** | Any change to the PDF invalidates the hash stored on-chain |
+| **Non-repudiation** | Blockchain record is immutable and timestamped |
+| **Privacy** | Signer data is encrypted; only the QR code holder can decrypt it |
 
-```
-npx nx release
-```
+The verification flow is protected against phishing: the mobile app hardcodes the API endpoint into the binary, shifting the trust root from a URL to an App Store listing.
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+Read more in the [Trust Model documentation](https://intrigsoft.github.io/sign-chain/trust-model/overview).
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## License
 
-## Keep TypeScript project references up to date
+This project is source-available under the [Business Source License 1.1](LICENSE).
 
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
+The source code is published for transparency and auditability. You can read, review, and audit the code. Commercial use, self-hosting, and redistribution are restricted under the BSL terms.
 
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
-
-```sh
-npx nx sync
-```
-
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
-
-```sh
-npx nx sync:check
-```
-
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
-
-## Nx Cloud
-
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Set up CI (non-Github Actions CI)
-
-**Note:** This is only required if your CI provider is not GitHub Actions.
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+The license converts to Apache 2.0 on 2030-03-27.
