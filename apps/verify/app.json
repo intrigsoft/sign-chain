@@ -19,7 +19,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -53,6 +52,12 @@
         "expo-camera",
         {
           "cameraPermission": "Allow SignChain Verify to use the camera to scan QR codes."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SignChain Verify to access your photos to scan QR codes."
         }
       ]
     ]

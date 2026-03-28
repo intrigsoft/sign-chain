@@ -1,2 +1,2 @@
-export { base64urlDecode, toHex } from './lib/base64url.js';
-export { decryptPayload } from './lib/decrypt.js';
+export { base64urlDecode, toHex } from './lib/base64url';
+export { decryptPayload } from './lib/decrypt';
