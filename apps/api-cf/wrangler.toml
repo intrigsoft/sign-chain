@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "signchain"
-database_id = "placeholder"   # replace after: wrangler d1 create signchain
+database_id = "26f4f28a-74f3-4fe6-ba11-67a17586016b"
 
 [vars]
 ANCHOR_QUOTA = "50"
