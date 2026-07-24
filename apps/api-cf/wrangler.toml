@@ -1,0 +1,27 @@
+name = "sign-chain-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "signchain"
+database_id = "placeholder"   # replace after: wrangler d1 create signchain
+
+[vars]
+ANCHOR_QUOTA = "50"
+MAIL_FROM = "noreply@signchain.app"
+APP_DEEP_LINK = "signchain://auth/callback"
+
+# Secrets (set via: wrangler secret put <NAME>)
+# JWT_SECRET
+# RELAYER_PRIVATE_KEY
+# RPC_URL
+# SIGNCHAIN_CONTRACT_ADDRESS
+# RESEND_API_KEY
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET
+# GOOGLE_CALLBACK_URL
+# MICROSOFT_CLIENT_ID
+# MICROSOFT_CLIENT_SECRET
+# MICROSOFT_CALLBACK_URL

@@ -1,0 +1,74 @@
+{
+  "name": "@sign-chain/api-cf",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "api-cf",
+    "targets": {
+      "dev": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "options": {
+          "command": "wrangler dev",
+          "cwd": "apps/api-cf"
+        }
+      },
+      "deploy": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "wrangler deploy",
+          "cwd": "apps/api-cf"
+        }
+      },
+      "migrate:generate": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "drizzle-kit generate",
+          "cwd": "apps/api-cf"
+        }
+      },
+      "migrate:local": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "wrangler d1 migrations apply signchain --local",
+          "cwd": "apps/api-cf"
+        }
+      },
+      "migrate:remote": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "wrangler d1 migrations apply signchain --remote",
+          "cwd": "apps/api-cf"
+        }
+      },
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run",
+          "cwd": "apps/api-cf"
+        }
+      },
+      "typecheck": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsc -p tsconfig.test.json --noEmit",
+          "cwd": "apps/api-cf"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.1",
+    "drizzle-orm": "^0.44.0",
+    "hono": "^4.7.0",
+    "jose": "^5.9.0",
+    "viem": "^2.21.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.18.8",
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "drizzle-kit": "^0.31.0",
+    "wrangler": "^3.99.0"
+  }
+}
