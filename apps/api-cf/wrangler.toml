@@ -10,7 +10,8 @@ database_id = "26f4f28a-74f3-4fe6-ba11-67a17586016b"
 
 [vars]
 ANCHOR_QUOTA = "50"
-MAIL_FROM = "noreply@signchain.app"
+# Resend sender — must be on a domain verified in Resend (dioschub.com for now).
+MAIL_FROM = "SignChain <noreply@dioschub.com>"
 APP_DEEP_LINK = "signchain://auth/callback"
 # Comma-separated browser-origin allowlist for CORS ("*" allows any).
 # Desktop (Tauri) and mobile clients send no Origin and are unaffected.
