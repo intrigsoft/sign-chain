@@ -11,7 +11,9 @@ use tauri::{Emitter, Listener, Manager};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app_state = AppState {
-        api_base: "http://localhost:3000/api".to_string(),
+        api_base: option_env!("SIGNCHAIN_API_BASE")
+            .unwrap_or("http://localhost:3000/api")
+            .to_string(),
         http: reqwest::Client::new(),
         jwt: Mutex::new(None),
     };

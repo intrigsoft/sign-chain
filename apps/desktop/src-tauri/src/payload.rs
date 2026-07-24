@@ -101,8 +101,12 @@ pub fn encrypt_payload(plaintext: &[u8]) -> Result<([u8; 16], Vec<u8>), String> 
 }
 
 /// Base URL for the verification web app.
-/// TODO: switch to https://signchain.app for production
-const QR_BASE_URL: &str = "https://192.168.8.100:4300";
+/// Set at build time via the SIGNCHAIN_QR_BASE_URL env var (see the desktop
+/// build workflow); defaults to localhost for local development.
+const QR_BASE_URL: &str = match option_env!("SIGNCHAIN_QR_BASE_URL") {
+    Some(url) => url,
+    None => "http://localhost:4300",
+};
 
 /// Build the QR URL with base64url-encoded tx hash and encryption key.
 /// Format: <base>/v/<base64url(txHashBytes)>#<base64url(key)>

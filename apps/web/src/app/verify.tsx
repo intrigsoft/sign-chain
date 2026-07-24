@@ -3,7 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { base64urlDecode, toHex, decryptPayload } from './crypto';
 import type { AnchorEntry, VerifyApiResult, SignerPayload } from '@sign-chain/types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://192.168.8.100:3000/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 type Status = 'loading' | 'verified' | 'no-key' | 'error';
 
