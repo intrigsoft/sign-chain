@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { drizzle } from 'drizzle-orm/d1';
@@ -6,10 +7,18 @@ import { eq, and, gt } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { signToken } from '../lib/jwt';
 import { sendMagicLinkEmail } from '../lib/mail';
+import { isRateLimited } from '../lib/rate-limit';
 import { authMiddleware } from '../middleware/auth';
 import type { Bindings, Variables } from '../types';
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
+
+const HOUR = 60 * 60 * 1000;
+const TEN_MIN = 10 * 60 * 1000;
+// Max magic-link emails per address per hour (blunts inbox bombing).
+const SEND_LIMIT = 5;
+// Max verify attempts per client IP per 10 minutes (blunts code brute-forcing).
+const VERIFY_LIMIT = 10;
 
 const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -21,6 +30,13 @@ auth.post(
   async (c) => {
     const { email } = c.req.valid('json');
     const db = drizzle(c.env.DB, { schema });
+
+    if (await isRateLimited(db, `maglink-send:${email}`, SEND_LIMIT, HOUR)) {
+      return c.json(
+        { message: 'Too many requests. Please try again later.' },
+        429
+      );
+    }
 
     const code = Math.floor(100_000 + Math.random() * 900_000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -38,6 +54,11 @@ auth.post(
   async (c) => {
     const { code } = c.req.valid('json');
     const db = drizzle(c.env.DB, { schema });
+
+    const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+    if (await isRateLimited(db, `maglink-verify:${ip}`, VERIFY_LIMIT, TEN_MIN)) {
+      return c.json({ message: 'Too many attempts. Please try again later.' }, 429);
+    }
 
     const [link] = await db
       .select()
@@ -97,38 +118,47 @@ auth.get('/google/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.json({ message: 'No code provided' }, 400);
 
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      code,
-      client_id: c.env.GOOGLE_CLIENT_ID,
-      client_secret: c.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: c.env.GOOGLE_CALLBACK_URL,
-      grant_type: 'authorization_code',
-    }),
-  });
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: c.env.GOOGLE_CLIENT_ID,
+        client_secret: c.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: c.env.GOOGLE_CALLBACK_URL,
+        grant_type: 'authorization_code',
+      }),
+    });
+    if (!tokenRes.ok) return oauthError(c);
 
-  const { access_token } = await tokenRes.json<{ access_token: string }>();
+    const { access_token } = await tokenRes.json<{ access_token?: string }>();
+    if (!access_token) return oauthError(c);
 
-  const profileRes = await fetch(
-    'https://www.googleapis.com/oauth2/v2/userinfo',
-    { headers: { Authorization: `Bearer ${access_token}` } }
-  );
-  const profile = await profileRes.json<{
-    id: string;
-    email: string;
-    name: string;
-  }>();
+    const profileRes = await fetch(
+      'https://www.googleapis.com/oauth2/v2/userinfo',
+      { headers: { Authorization: `Bearer ${access_token}` } }
+    );
+    if (!profileRes.ok) return oauthError(c);
 
-  const db = drizzle(c.env.DB, { schema });
-  const token = await handleOAuthCallback(
-    db,
-    { providerId: profile.id, email: profile.email, name: profile.name, provider: 'google' },
-    c.env.JWT_SECRET
-  );
+    const profile = await profileRes.json<{
+      id: string;
+      email?: string;
+      name: string;
+    }>();
+    if (!profile.email) return oauthError(c);
 
-  return c.redirect(`${c.env.APP_DEEP_LINK}?token=${token}`);
+    const db = drizzle(c.env.DB, { schema });
+    const token = await handleOAuthCallback(
+      db,
+      { providerId: profile.id, email: profile.email, name: profile.name, provider: 'google' },
+      c.env.JWT_SECRET
+    );
+
+    return c.redirect(`${c.env.APP_DEEP_LINK}?token=${token}`);
+  } catch {
+    return oauthError(c);
+  }
 });
 
 // ── Microsoft OAuth ───────────────────────────────────────────────
@@ -149,40 +179,51 @@ auth.get('/microsoft/callback', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.json({ message: 'No code provided' }, 400);
 
-  const tokenRes = await fetch(
-    'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: c.env.MICROSOFT_CLIENT_ID,
-        client_secret: c.env.MICROSOFT_CLIENT_SECRET,
-        redirect_uri: c.env.MICROSOFT_CALLBACK_URL,
-        grant_type: 'authorization_code',
-      }),
-    }
-  );
+  try {
+    const tokenRes = await fetch(
+      'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: c.env.MICROSOFT_CLIENT_ID,
+          client_secret: c.env.MICROSOFT_CLIENT_SECRET,
+          redirect_uri: c.env.MICROSOFT_CALLBACK_URL,
+          grant_type: 'authorization_code',
+        }),
+      }
+    );
+    if (!tokenRes.ok) return oauthError(c);
 
-  const { access_token } = await tokenRes.json<{ access_token: string }>();
+    const { access_token } = await tokenRes.json<{ access_token?: string }>();
+    if (!access_token) return oauthError(c);
 
-  const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
-    headers: { Authorization: `Bearer ${access_token}` },
-  });
-  const profile = await profileRes.json<{
-    id: string;
-    mail: string;
-    displayName: string;
-  }>();
+    const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (!profileRes.ok) return oauthError(c);
 
-  const db = drizzle(c.env.DB, { schema });
-  const token = await handleOAuthCallback(
-    db,
-    { providerId: profile.id, email: profile.mail, name: profile.displayName, provider: 'microsoft' },
-    c.env.JWT_SECRET
-  );
+    const profile = await profileRes.json<{
+      id: string;
+      mail?: string;
+      userPrincipalName?: string;
+      displayName: string;
+    }>();
+    const email = profile.mail ?? profile.userPrincipalName;
+    if (!email) return oauthError(c);
 
-  return c.redirect(`${c.env.APP_DEEP_LINK}?token=${token}`);
+    const db = drizzle(c.env.DB, { schema });
+    const token = await handleOAuthCallback(
+      db,
+      { providerId: profile.id, email, name: profile.displayName, provider: 'microsoft' },
+      c.env.JWT_SECRET
+    );
+
+    return c.redirect(`${c.env.APP_DEEP_LINK}?token=${token}`);
+  } catch {
+    return oauthError(c);
+  }
 });
 
 // ── Protected ─────────────────────────────────────────────────────
@@ -222,6 +263,12 @@ auth.post('/refresh', authMiddleware, async (c) => {
 });
 
 // ── Helpers ───────────────────────────────────────────────────────
+
+// On any OAuth failure, bounce back to the app with an error flag instead of
+// leaking a 500 / stack trace. The desktop app surfaces this to the user.
+function oauthError(c: Context<{ Bindings: Bindings; Variables: Variables }>) {
+  return c.redirect(`${c.env.APP_DEEP_LINK}?error=oauth_failed`);
+}
 
 async function handleOAuthCallback(
   db: Db,

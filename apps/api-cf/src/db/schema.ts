@@ -93,6 +93,15 @@ export const cloudSignatures = sqliteTable(
   (t) => [index('cloud_signatures_user_id').on(t.userId)]
 );
 
+export const rateLimits = sqliteTable('rate_limits', {
+  // Fixed-window counter keyed by e.g. "maglink-send:<email>" or
+  // "maglink-verify:<ip>". Not perfectly atomic under D1, but sufficient to
+  // blunt email bombing and code brute-forcing.
+  key: text('key').primaryKey(),
+  count: integer('count').notNull().default(0),
+  windowStart: integer('window_start', { mode: 'timestamp' }).notNull(),
+});
+
 export const cloudTextSnippets = sqliteTable(
   'cloud_text_snippets',
   {

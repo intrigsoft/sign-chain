@@ -10,6 +10,8 @@ export type Bindings = {
   MAIL_FROM: string;
   ANCHOR_QUOTA: string;
   APP_DEEP_LINK: string;
+  // Comma-separated allowlist of browser origins; "*" allows any.
+  CORS_ALLOWED_ORIGINS: string;
   // OAuth
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;

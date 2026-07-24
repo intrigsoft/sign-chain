@@ -12,6 +12,9 @@ database_id = "placeholder"   # replace after: wrangler d1 create signchain
 ANCHOR_QUOTA = "50"
 MAIL_FROM = "noreply@signchain.app"
 APP_DEEP_LINK = "signchain://auth/callback"
+# Comma-separated browser-origin allowlist for CORS ("*" allows any).
+# Desktop (Tauri) and mobile clients send no Origin and are unaffected.
+CORS_ALLOWED_ORIGINS = "https://signchain.app,tauri://localhost,https://tauri.localhost"
 
 # Secrets (set via: wrangler secret put <NAME>)
 # JWT_SECRET

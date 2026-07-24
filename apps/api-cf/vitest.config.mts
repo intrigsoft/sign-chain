@@ -26,6 +26,7 @@ export default defineConfig(async () => {
             ANCHOR_QUOTA: '3',
             MAIL_FROM: 'noreply@test.dev',
             APP_DEEP_LINK: 'signchain://auth/callback',
+            CORS_ALLOWED_ORIGINS: 'https://app.test,tauri://localhost',
             RESEND_API_KEY: 'test-resend-key',
             RPC_URL: 'http://rpc.test',
             SIGNCHAIN_CONTRACT_ADDRESS:
