@@ -9,6 +9,19 @@ import {
   type Address,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { polygon, polygonAmoy } from 'viem/chains';
+import type { Chain } from 'viem';
+
+const CHAINS: Record<string, Chain> = {
+  polygon,
+  'polygon-amoy': polygonAmoy,
+};
+
+function resolveChain(name: string): Chain {
+  const chain = CHAINS[name];
+  if (!chain) throw new Error(`Unsupported chain: ${name}`);
+  return chain;
+}
 
 export const SIGN_CHAIN_ABI = parseAbi([
   'function anchorDocument(bytes32 compositeHash, bytes32 previousTxHash)',
@@ -30,12 +43,14 @@ export async function anchorDocument(
   relayerKey: string,
   contractAddress: string,
   compositeHash: string,
-  previousTxHash: string
+  previousTxHash: string,
+  chainName: string
 ): Promise<{ txHash: string; blockNumber: number }> {
+  const chain = resolveChain(chainName);
   const transport = http(rpcUrl);
   const account = privateKeyToAccount(relayerKey as Hash);
-  const publicClient = createPublicClient({ transport });
-  const walletClient = createWalletClient({ account, transport });
+  const publicClient = createPublicClient({ chain, transport });
+  const walletClient = createWalletClient({ account, chain, transport });
 
   const txHash = await walletClient.writeContract({
     address: contractAddress as Address,
@@ -43,7 +58,7 @@ export async function anchorDocument(
     functionName: 'anchorDocument',
     args: [compositeHash as Hash, previousTxHash as Hash],
     account,
-    chain: null,
+    chain,
   });
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });

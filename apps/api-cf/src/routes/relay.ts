@@ -52,7 +52,8 @@ relay.post(
       c.env.RELAYER_PRIVATE_KEY,
       c.env.SIGNCHAIN_CONTRACT_ADDRESS,
       dto.compositeHash,
-      dto.previousTxHash
+      dto.previousTxHash,
+      c.env.CHAIN
     );
 
     await db.insert(schema.anchors).values({

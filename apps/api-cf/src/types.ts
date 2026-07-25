@@ -5,6 +5,8 @@ export type Bindings = {
   RELAYER_PRIVATE_KEY: string;
   RPC_URL: string;
   SIGNCHAIN_CONTRACT_ADDRESS: string;
+  // viem chain key: "polygon-amoy" (testnet) or "polygon" (mainnet)
+  CHAIN: string;
   RESEND_API_KEY: string;
   // Vars
   MAIL_FROM: string;
