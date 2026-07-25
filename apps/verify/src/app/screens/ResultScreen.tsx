@@ -6,7 +6,9 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { VerifyApiResult, SignerPayload } from '@sign-chain/types';
 import { verifyDocument, type VerifyState } from '../lib/verify';
@@ -18,6 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Result'>;
 export default function ResultScreen({ route, navigation }: Props) {
   const { txHashB64, keyB64 } = route.params;
   const [state, setState] = useState<VerifyState>({ status: 'loading' });
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     verifyDocument(txHashB64, keyB64).then(setState);
@@ -26,132 +29,140 @@ export default function ResultScreen({ route, navigation }: Props) {
   return (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+      showsVerticalScrollIndicator={false}
     >
-      <View style={styles.card}>
-        {state.status === 'loading' && <LoadingView />}
-        {state.status === 'error' && <ErrorView error={state.error!} />}
-        {state.status === 'no-key' && <NoKeyView result={state.apiResult!} />}
-        {state.status === 'verified' && (
-          <VerifiedView
-            result={state.apiResult!}
-            payload={state.signerPayload!}
-          />
-        )}
-      </View>
+      {state.status === 'loading' && <LoadingCard />}
+      {state.status === 'error' && <ErrorCard error={state.error!} />}
+      {state.status === 'no-key' && <NoKeyCard result={state.apiResult!} />}
+      {state.status === 'verified' && (
+        <VerifiedCard result={state.apiResult!} payload={state.signerPayload!} />
+      )}
 
-      <TouchableOpacity
-        style={styles.scanAgain}
-        onPress={() => navigation.navigate('Scanner')}
-      >
-        <Text style={styles.scanAgainText}>Scan Another</Text>
-      </TouchableOpacity>
+      {state.status !== 'loading' && (
+        <TouchableOpacity
+          style={styles.scanAgainButton}
+          onPress={() => navigation.navigate('Scanner')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.scanAgainText}>Scan Another Document</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
 
-function LoadingView() {
+// ─── Status icon ─────────────────────────────────────────────────────────────
+
+function StatusIcon({ type }: { type: 'verified' | 'error' | 'partial' }) {
+  const config = {
+    verified: { bg: colors.green[50], color: colors.green[600], symbol: '✓' },
+    error: { bg: colors.red[50], color: colors.red[600], symbol: '✕' },
+    partial: { bg: colors.yellow[50], color: colors.yellow[600], symbol: '!' },
+  }[type];
+
   return (
-    <View style={styles.center}>
+    <View style={[styles.iconCircle, { backgroundColor: config.bg }]}>
+      <Text style={[styles.iconSymbol, { color: config.color }]}>{config.symbol}</Text>
+    </View>
+  );
+}
+
+// ─── Cards ───────────────────────────────────────────────────────────────────
+
+function LoadingCard() {
+  return (
+    <View style={[styles.card, styles.loadingCard]}>
       <ActivityIndicator size="large" color={colors.brand[600]} />
-      <Text style={styles.loadingText}>Verifying on blockchain...</Text>
+      <Text style={styles.loadingTitle}>Verifying</Text>
+      <Text style={styles.loadingSubtitle}>Checking the blockchain…</Text>
     </View>
   );
 }
 
-function ErrorView({ error }: { error: string }) {
+function ErrorCard({ error }: { error: string }) {
   return (
-    <View>
-      <View style={[styles.badge, { backgroundColor: colors.red[50] }]}>
-        <Text style={[styles.badgeText, { color: colors.red[600] }]}>
-          Verification Failed
-        </Text>
-      </View>
-      <Text style={styles.description}>{error}</Text>
+    <View style={styles.card}>
+      <StatusIcon type="error" />
+      <Text style={styles.statusTitle}>Verification Failed</Text>
+      <Text style={styles.statusSubtitle}>{error}</Text>
     </View>
   );
 }
 
-function NoKeyView({ result }: { result: VerifyApiResult }) {
+function NoKeyCard({ result }: { result: VerifyApiResult }) {
   return (
-    <View>
-      <View style={[styles.badge, { backgroundColor: colors.yellow[50] }]}>
-        <Text style={[styles.badgeText, { color: colors.yellow[600] }]}>
-          Partial Verification
-        </Text>
-      </View>
-      <Text style={styles.description}>
-        This document is anchored on the blockchain, but the decryption key was
-        not found in the URL. Signer details cannot be displayed.
+    <View style={styles.card}>
+      <StatusIcon type="partial" />
+      <Text style={styles.statusTitle}>Anchored on Blockchain</Text>
+      <Text style={styles.statusSubtitle}>
+        This document is verified on-chain. The decryption key wasn't included in the QR code, so signer identity cannot be shown.
       </Text>
-      <DetailRow label="Transaction" value={result.txHash} mono />
-      <DetailRow label="Composite Hash" value={result.compositeHash} mono />
-      <DetailRow
-        label="Block Time"
-        value={new Date(result.timestamp * 1000).toLocaleString()}
-      />
-      <DetailRow
-        label="Chain Length"
-        value={`${result.chain.length} signature(s)`}
-      />
+
+      <Section title="Blockchain">
+        <DetailRow label="Transaction" value={result.txHash} mono />
+        <DetailRow label="Composite Hash" value={result.compositeHash} mono />
+        <DetailRow
+          label="Block Time"
+          value={new Date(result.timestamp * 1000).toLocaleString()}
+        />
+        <DetailRow label="Chain Length" value={`${result.chain.length} signature(s)`} />
+      </Section>
     </View>
   );
 }
 
-function VerifiedView({
-  result,
-  payload,
-}: {
-  result: VerifyApiResult;
-  payload: SignerPayload;
-}) {
+function VerifiedCard({ result, payload }: { result: VerifyApiResult; payload: SignerPayload }) {
   const signerType = payload.s.t === 'company' ? 'Company' : 'Individual';
 
   return (
-    <View>
-      <View style={[styles.badge, { backgroundColor: colors.green[50] }]}>
-        <Text style={[styles.badgeText, { color: colors.green[600] }]}>
-          Verified
-        </Text>
-      </View>
-      <Text style={styles.description}>
-        This document's signature is anchored on the blockchain and the signer
-        details have been decrypted successfully.
+    <View style={styles.card}>
+      <StatusIcon type="verified" />
+      <Text style={styles.statusTitle}>Signature Verified</Text>
+      <Text style={styles.statusSubtitle}>
+        This document is anchored on the blockchain and the signer's identity has been confirmed.
       </Text>
 
-      <SectionTitle>Signer</SectionTitle>
-      <DetailRow label="Name" value={payload.s.n} />
-      <DetailRow label="Email" value={payload.s.e} />
-      <DetailRow label="Type" value={signerType} />
-      {payload.s.c ? <DetailRow label="Company" value={payload.s.c} /> : null}
-      {payload.s.p ? <DetailRow label="Position" value={payload.s.p} /> : null}
+      <Section title="Signer">
+        <DetailRow label="Name" value={payload.s.n} />
+        <DetailRow label="Email" value={payload.s.e} />
+        <DetailRow label="Type" value={signerType} />
+        {payload.s.c ? <DetailRow label="Company" value={payload.s.c} /> : null}
+        {payload.s.p ? <DetailRow label="Position" value={payload.s.p} /> : null}
+      </Section>
 
-      <SectionTitle>Document</SectionTitle>
-      <DetailRow label="Document Hash" value={payload.d} mono />
-      <DetailRow
-        label="Signed At"
-        value={new Date(payload.ts * 1000).toLocaleString()}
-      />
-      {payload.g ? (
+      <Section title="Document">
+        <DetailRow label="Hash" value={payload.d} mono />
         <DetailRow
-          label="Location"
-          value={`${payload.g.la.toFixed(4)}, ${payload.g.ln.toFixed(4)}`}
+          label="Signed At"
+          value={new Date(payload.ts * 1000).toLocaleString()}
         />
-      ) : null}
+        {payload.g ? (
+          <DetailRow
+            label="Location"
+            value={`${payload.g.la.toFixed(4)}, ${payload.g.ln.toFixed(4)}`}
+          />
+        ) : null}
+      </Section>
 
-      <SectionTitle>Blockchain</SectionTitle>
-      <DetailRow label="Transaction" value={result.txHash} mono />
-      <DetailRow label="Composite Hash" value={result.compositeHash} mono />
-      <DetailRow
-        label="Chain Length"
-        value={`${result.chain.length} signature(s)`}
-      />
+      <Section title="Blockchain">
+        <DetailRow label="Transaction" value={result.txHash} mono />
+        <DetailRow label="Composite Hash" value={result.compositeHash} mono />
+        <DetailRow label="Chain Length" value={`${result.chain.length} signature(s)`} />
+      </Section>
     </View>
   );
 }
 
-function SectionTitle({ children }: { children: string }) {
-  return <Text style={styles.sectionTitle}>{children}</Text>;
+// ─── Shared sub-components ───────────────────────────────────────────────────
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionBody}>{children}</View>
+    </View>
+  );
 }
 
 function DetailRow({
@@ -167,7 +178,7 @@ function DetailRow({
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text
-        style={[styles.rowValue, mono && styles.mono]}
+        style={[styles.rowValue, mono ? styles.mono : null]}
         numberOfLines={1}
         ellipsizeMode="middle"
       >
@@ -177,66 +188,92 @@ function DetailRow({
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     backgroundColor: colors.gray[50],
   },
   content: {
-    padding: 16,
+    padding: 20,
     paddingTop: 24,
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.07,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 10,
+    elevation: 3,
   },
-  center: {
+  loadingCard: {
     alignItems: 'center',
-    padding: 32,
+    paddingVertical: 52,
   },
-  loadingText: {
-    color: colors.gray[500],
-    marginTop: 16,
-    fontSize: 14,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  badgeText: {
+  loadingTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    fontSize: 15,
+    color: colors.gray[900],
+    marginTop: 20,
   },
-  description: {
+  loadingSubtitle: {
+    fontSize: 14,
+    color: colors.gray[400],
+    marginTop: 6,
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  iconSymbol: {
+    fontSize: 30,
+    fontWeight: '700',
+  },
+  statusTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.gray[900],
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  statusSubtitle: {
+    fontSize: 14,
     color: colors.gray[500],
-    fontSize: 13,
-    marginTop: 16,
-    lineHeight: 20,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  section: {
+    marginTop: 28,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.gray[700],
-    marginTop: 20,
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.gray[400],
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  sectionBody: {
+    backgroundColor: colors.gray[50],
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
-    paddingVertical: 6,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.gray[100],
+    borderBottomColor: colors.gray[200],
   },
   rowLabel: {
     fontSize: 13,
@@ -246,25 +283,26 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     fontSize: 13,
+    fontWeight: '500',
     color: colors.gray[900],
     textAlign: 'right',
     flexShrink: 1,
   },
   mono: {
-    fontFamily: 'Courier',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
   },
-  scanAgain: {
-    alignSelf: 'center',
-    marginTop: 24,
-    marginBottom: 48,
+  scanAgainButton: {
+    marginTop: 16,
     backgroundColor: colors.brand[600],
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
   },
   scanAgainText: {
     color: colors.white,
     fontSize: 16,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
 });

@@ -1,0 +1,16 @@
+# Copy to .dev.vars for local development (wrangler reads this automatically)
+# Never commit .dev.vars
+
+JWT_SECRET="dev-secret-change-me"
+RELAYER_PRIVATE_KEY=""
+RPC_URL="http://127.0.0.1:8545"
+SIGNCHAIN_CONTRACT_ADDRESS=""
+RESEND_API_KEY=""
+
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GOOGLE_CALLBACK_URL="http://localhost:8787/api/auth/google/callback"
+
+MICROSOFT_CLIENT_ID=""
+MICROSOFT_CLIENT_SECRET=""
+MICROSOFT_CALLBACK_URL="http://localhost:8787/api/auth/microsoft/callback"

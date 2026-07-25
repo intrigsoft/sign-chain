@@ -1,4 +1,4 @@
-import { base64urlDecode } from './base64url.js';
+import { base64urlDecode } from './base64url';
 
 /**
  * Decrypt AES-128-GCM ciphertext.

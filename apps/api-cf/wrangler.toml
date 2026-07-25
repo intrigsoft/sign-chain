@@ -1,0 +1,33 @@
+name = "sign-chain-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "signchain"
+database_id = "26f4f28a-74f3-4fe6-ba11-67a17586016b"
+
+[vars]
+ANCHOR_QUOTA = "50"
+# Resend sender — must be on a domain verified in Resend (dioschub.com for now).
+MAIL_FROM = "SignChain <noreply@dioschub.com>"
+APP_DEEP_LINK = "signchain://auth/callback"
+# viem chain key: "polygon-amoy" (testnet) or "polygon" (mainnet).
+CHAIN = "polygon-amoy"
+# Comma-separated browser-origin allowlist for CORS ("*" allows any).
+# Desktop (Tauri) and mobile clients send no Origin and are unaffected.
+CORS_ALLOWED_ORIGINS = "https://signchain.app,tauri://localhost,https://tauri.localhost"
+
+# Secrets (set via: wrangler secret put <NAME>)
+# JWT_SECRET
+# RELAYER_PRIVATE_KEY
+# RPC_URL
+# SIGNCHAIN_CONTRACT_ADDRESS
+# RESEND_API_KEY
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET
+# GOOGLE_CALLBACK_URL
+# MICROSOFT_CLIENT_ID
+# MICROSOFT_CLIENT_SECRET
+# MICROSOFT_CALLBACK_URL

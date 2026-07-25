@@ -15,7 +15,7 @@
     "jest-expo": "*",
     "metro-config": "*",
     "metro-resolver": "*",
-    "react": "*",
+    "react": "19.1.0",
     "react-native": "*",
     "react-native-svg": "*",
     "react-native-svg-transformer": "*",

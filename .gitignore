@@ -57,6 +57,11 @@ contracts/.env.local
 # Environment files
 apps/api/.env
 
+# Cloudflare Workers (api-cf) — local secrets & state
+apps/api-cf/.dev.vars
+apps/api-cf/.wrangler/
+.wrangler/
+
 # Prisma
 apps/api/prisma/migrations/
 

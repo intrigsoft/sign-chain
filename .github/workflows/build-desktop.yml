@@ -26,6 +26,18 @@ jobs:
             target: macos
 
     runs-on: ${{ matrix.platform }}
+
+    # Build-time configuration. Override per environment via repository Variables
+    # (Settings → Secrets and variables → Actions → Variables); the fallbacks are
+    # the production defaults so release builds never ship a localhost/LAN URL.
+    #   VITE_API_BASE_URL     — origin used by the desktop frontend HTTP client
+    #   SIGNCHAIN_API_BASE    — API base (incl. /api) baked into the Rust core
+    #   SIGNCHAIN_QR_BASE_URL — verification web app base encoded into QR links
+    env:
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://signchain.app' }}
+      SIGNCHAIN_API_BASE: ${{ vars.SIGNCHAIN_API_BASE || 'https://signchain.app/api' }}
+      SIGNCHAIN_QR_BASE_URL: ${{ vars.SIGNCHAIN_QR_BASE_URL || 'https://signchain.app' }}
+
     steps:
       - uses: actions/checkout@v4
 
